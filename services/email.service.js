@@ -420,15 +420,26 @@ const _send = async (to, subject, html) => {
   try {
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
     const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_PASS;
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = Number(process.env.SMTP_PORT || 587);
+    const smtpSecure = process.env.SMTP_SECURE === "true";
+    const smtpFrom = process.env.SMTP_FROM_EMAIL || `${APP} <${smtpUser}>`;
 
     if (smtpUser && smtpPass) {
       console.log(`⚙️ Provider: Gmail SMTP (${smtpUser})`);
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: smtpUser, pass: smtpPass },
-      });
+      const transporter = smtpHost
+        ? nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            auth: { user: smtpUser, pass: smtpPass },
+          })
+        : nodemailer.createTransport({
+            service: "gmail",
+            auth: { user: smtpUser, pass: smtpPass },
+          });
       const info = await transporter.sendMail({
-        from: `${APP} <${smtpUser}>`,
+        from: smtpFrom,
         to,
         subject,
         html,

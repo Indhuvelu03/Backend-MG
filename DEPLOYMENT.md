@@ -27,6 +27,11 @@ Before testing email, verify `RESEND_FROM_EMAIL` belongs to a domain verified in
 Resend. Set Twilio values only when live SMS/WhatsApp delivery is intended; the
 application logs mock delivery when Twilio credentials are absent.
 
+For a no-domain demo, the application also supports a generic SMTP relay. Set
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and
+`SMTP_FROM_EMAIL`. On a free Render web service, use an SMTP provider's port
+`2525` rather than 25, 465, or 587, which Render blocks.
+
 For Vercel set `VITE_API_BASE_URL` to the Render web-service URL, for example
 `https://your-api.onrender.com/api`, then redeploy the frontend.
 
