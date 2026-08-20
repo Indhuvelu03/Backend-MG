@@ -1,78 +1,93 @@
-// src/scripts/seed-admin.js
-import mongoose from 'mongoose';
+// scripts/seed-admin.js — Supabase version
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { User } from '../models/User.js';
-import { env } from '../config/env.js';
+dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcrypt';
 
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '../../.env') });
-
-const MONGODB_URI = env.MONGODB_URI || 'mongodb://localhost:27017/vehicle-service';
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 async function seedAdmin() {
   console.log('🚀 Starting admin seeding...');
-  console.log(`📡 Connecting to MongoDB...`);
+  console.log(`📡 Connecting to Supabase: ${process.env.SUPABASE_URL}`);
 
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+  // ── Check if admin already exists ──────────────────────────────────────────
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id, email, role')
+    .eq('email', 'admin@autoaudit.in')
+    .maybeSingle();
 
-    // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'admin@example.com' });
-    if (existingAdmin) {
-      console.log('ℹ️ Admin user already exists:');
-      console.log(`   Email: ${existingAdmin.email}`);
-      console.log(`   Role: ${existingAdmin.role}`);
-      console.log(`   Active: ${existingAdmin.isActive}`);
-      return;
-    }
-
-    // Create admin user
-    const adminUser = new User({
-      name: 'System Administrator',
-      email: 'admin@example.com',
-      password: 'Admin@123456', // Change this in production!
-      role: 'ADMIN',
-      isActive: true,
-    });
-
-    await adminUser.save();
-    console.log('✅ Admin user created successfully:');
-    console.log(`   Email: admin@example.com`);
-    console.log(`   Password: Admin@123456`);
-    console.log(`   Role: ADMIN`);
-
-    // Also create a staff user for testing
-    const existingStaff = await User.findOne({ email: 'staff@example.com' });
-    if (!existingStaff) {
-      const staffUser = new User({
-        name: 'Staff User',
-        email: 'staff@example.com',
-        password: 'Staff@123456',
-        role: 'STAFF',
-        isActive: true,
-      });
-      await staffUser.save();
-      console.log('✅ Staff user created successfully:');
-      console.log(`   Email: staff@example.com`);
-      console.log(`   Password: Staff@123456`);
-      console.log(`   Role: STAFF`);
-    }
-
-    console.log('🎉 Seeding completed successfully!');
-  } catch (error) {
-    console.error('❌ Seeding failed:', error);
-    process.exit(1);
-  } finally {
-    await mongoose.disconnect();
-    console.log('🔌 Disconnected from MongoDB');
+  if (existing) {
+    console.log('ℹ️  Admin user already exists:');
+    console.log(`   Email : ${existing.email}`);
+    console.log(`   Role  : ${existing.role}`);
+    console.log('✅ Nothing to do.');
+    process.exit(0);
   }
+
+  // ── Hash password ───────────────────────────────────────────────────────────
+  const passwordHash = await bcrypt.hash('Admin@123456', 10);
+
+  // ── Insert admin ────────────────────────────────────────────────────────────
+  const { data: admin, error: adminErr } = await supabase
+    .from('users')
+    .insert({
+      name: 'System Administrator',
+      email: 'admin@autoaudit.in',
+      password: passwordHash,
+      role: 'ADMIN',
+      is_active: true,
+    })
+    .select('id, name, email, role')
+    .single();
+
+  if (adminErr) {
+    console.error('❌ Failed to create admin:', adminErr.message);
+    process.exit(1);
+  }
+  console.log('✅ Admin user created:');
+  console.log(`   Email    : admin@autoaudit.in`);
+  console.log(`   Password : Admin@123456`);
+  console.log(`   Role     : ADMIN`);
+
+  // ── Insert staff ────────────────────────────────────────────────────────────
+  const { data: existingStaff } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', 'staff@autoaudit.in')
+    .maybeSingle();
+
+  if (!existingStaff) {
+    const staffHash = await bcrypt.hash('Staff@123456', 10);
+    const { error: staffErr } = await supabase
+      .from('users')
+      .insert({
+        name: 'Service Advisor',
+        email: 'staff@autoaudit.in',
+        password: staffHash,
+        role: 'STAFF',
+        is_active: true,
+      });
+
+    if (staffErr) {
+      console.warn('⚠️  Staff user not created:', staffErr.message);
+    } else {
+      console.log('✅ Staff user created:');
+      console.log(`   Email    : staff@autoaudit.in`);
+      console.log(`   Password : Staff@123456`);
+      console.log(`   Role     : STAFF`);
+    }
+  }
+
+  console.log('\n🎉 Seeding complete! You can now log in at your Vercel URL.');
+  process.exit(0);
 }
 
-// Run the seeding
-seedAdmin();
+seedAdmin().catch((err) => {
+  console.error('❌ Unexpected error:', err);
+  process.exit(1);
+});
