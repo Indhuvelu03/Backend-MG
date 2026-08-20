@@ -12,4 +12,5 @@ export const sendFeedbackLinkSchema = z.object({
 
 export const publicSubmitFeedbackSchema = z.object({
   vehicleNumber: z.string().min(4, "Vehicle number must be at least 4 characters"),
+  feedbackText: z.string().trim().min(10, "Please enter at least 10 characters of feedback").max(5000).optional(),
 });

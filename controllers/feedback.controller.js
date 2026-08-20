@@ -42,10 +42,10 @@ export const validateToken = async (req, res, next) => {
 export const submitFeedback = async (req, res, next) => {
   try {
     const { token } = req.params;
-    const { vehicleNumber } = req.body;
+    const { vehicleNumber, feedbackText } = req.body;
     const file = req.file;
 
-    if (!file)          throw new AppError("Audio recording is required", 400);
+    if (!file && !feedbackText?.trim()) throw new AppError("Please provide typed feedback or a voice recording", 400);
     if (!vehicleNumber) throw new AppError("Vehicle number is required", 400);
 
     // 1. Verify link + get customer
@@ -59,10 +59,13 @@ export const submitFeedback = async (req, res, next) => {
       throw new AppError("Vehicle number verification failed", 400);
     }
 
-    // 3. Upload audio to Supabase Storage
-    const ext       = path.extname(file.originalname) || ".mp3";
-    const filePath  = `audio/${token}_${Date.now()}${ext}`;
-    const audioUrl  = await storageService.uploadAudio(file.buffer, filePath, file.mimetype);
+    // 3. Audio is optional; typed feedback is accepted on its own.
+    let audioUrl = null;
+    if (file) {
+      const ext = path.extname(file.originalname) || ".mp3";
+      const filePath = `audio/${token}_${Date.now()}${ext}`;
+      audioUrl = await storageService.uploadAudio(file.buffer, filePath, file.mimetype);
+    }
 
     // 4. Create complaint record
     const complaint = await Complaint.create({
@@ -70,20 +73,22 @@ export const submitFeedback = async (req, res, next) => {
       feedbackLinkId: link.id,
       vehicleNumber:  custVehicle.toUpperCase(),
       audioUrl,
-      status:         "AUDIO_UPLOADED",
+      transcript:      feedbackText?.trim() || null,
+      status:          file ? "AUDIO_UPLOADED" : "TRANSCRIBED",
     });
 
     // 5. Mark link as submitted (first use = expired)
     await FeedbackLink.updateById(link.id, { status: "SUBMITTED" });
 
-    // 6. The request is only successful once durable queueing succeeds.
-    // This prevents an uploaded recording from appearing accepted while no
-    // automation can ever process it.
-    const job = await transcriptionQueue.add("transcribe-audio", {
-      complaintId: complaint.id,
-    }, { jobId: `transcribe-${complaint.id}` });
-    logger.info(`Queued transcription job ${job.id} for complaint ${complaint.id}`);
+    // 6. Queue transcription only when a voice file is present.
+    let job = null;
+    if (file) {
+      job = await transcriptionQueue.add("transcribe-audio", {
+        complaintId: complaint.id,
+      }, { jobId: `transcribe-${complaint.id}` });
+      logger.info(`Queued transcription job ${job.id} for complaint ${complaint.id}`);
+    }
 
-    sendSuccess(res, "Feedback submitted and queued for processing", { complaint, jobId: job.id }, 201);
+    sendSuccess(res, file ? "Feedback submitted and queued for processing" : "Typed feedback submitted successfully", { complaint, jobId: job?.id || null }, 201);
   } catch (error) { next(error); }
 };

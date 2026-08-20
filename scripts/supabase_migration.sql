@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS complaints (
   customer_id        UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   feedback_link_id   UUID REFERENCES feedback_links(id),
   vehicle_number     TEXT NOT NULL,
-  audio_url          TEXT NOT NULL,
+  audio_url          TEXT,
   transcript         TEXT,
   language           TEXT,
   confidence_score   NUMERIC(5,2),

@@ -31,7 +31,8 @@ export const Complaint = {
         customer_id:      data.customerId,
         feedback_link_id: data.feedbackLinkId || null,
         vehicle_number:   data.vehicleNumber?.toUpperCase(),
-        audio_url:        data.audioUrl,
+        audio_url:        data.audioUrl || null,
+        transcript:       data.transcript || null,
         status:           data.status || "AUDIO_UPLOADED",
       })
       .select()

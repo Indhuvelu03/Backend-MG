@@ -68,7 +68,7 @@ export const transcriptionWorker = new Worker(
 
       await Complaint.updateById(complaintId, {
         status:            newStatus,
-        transcript:        result.text,
+        transcript:        [complaint.transcript, result.text].filter(Boolean).join("\n\nVoice recording transcript:\n"),
         language:          result.language,
         confidenceScore:   result.confidence,
         transcriptFlagged: result.confidence < CONFIDENCE_HIGH,
