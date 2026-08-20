@@ -23,18 +23,27 @@ export const createFeedbackLink = async (customerId) => {
 export const autoCreateAndSendLink = async (customerId) => {
   const link = await createFeedbackLink(customerId);
 
+  // 1. Attempt direct email dispatch immediately with loud diagnostic logs
+  try {
+    const { sendFeedbackInvite } = await import("./email.service.js");
+    const customer = await Customer.findById(customerId);
+    if (customer?.email) {
+      console.log(`\n🚀 [AUTO DISPATCHING EMAIL FOR NEW CUSTOMER: ${customer.name} (${customer.email})]`);
+      await sendFeedbackInvite(customer, link);
+    } else {
+      console.warn(`⚠️ [AUTO DISPATCH SKIPPED] No email address found for customer ID ${customerId}`);
+    }
+  } catch (err) {
+    console.error(`❌ [DIRECT AUTO-EMAIL DISPATCH ERROR]:`, err.message || err);
+  }
+
+  // 2. Also add to notificationsQueue for worker retries
   try {
     await notificationsQueue.add("dispatch-invite", {
       feedbackLinkId: link.id,
     });
-  } catch (err) {
-    const { logger } = await import("../utils/logger.js");
-    const { sendFeedbackInvite } = await import("./email.service.js");
-    logger.warn(`⚠️ Notifications queue dispatch failed, falling back to direct email: ${err.message}`);
-    const customer = await Customer.findById(customerId);
-    if (customer?.email) {
-      await sendFeedbackInvite(customer, link).catch(e => logger.error(`Direct email error: ${e.message}`));
-    }
+  } catch (queueErr) {
+    console.warn(`⚠️ [QUEUE ADD SKIPPED]: ${queueErr.message}`);
   }
 
   return link;

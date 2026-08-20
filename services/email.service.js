@@ -412,11 +412,17 @@ export const sendFraudEscalation = async ({ managerEmail, customerName, vehicleN
 
 // ── Internal send helper ───────────────────────────────────────────────────────
 const _send = async (to, subject, html) => {
+  console.log(`\n=================== [EMAIL DISPATCH ATTEMPT] ===================`);
+  console.log(`📩 Target Recipient : ${to}`);
+  console.log(`📋 Subject          : ${subject}`);
+  console.log(`================================================================`);
+
   try {
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
     const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_PASS;
 
     if (smtpUser && smtpPass) {
+      console.log(`⚙️ Provider: Gmail SMTP (${smtpUser})`);
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: { user: smtpUser, pass: smtpPass },
@@ -427,23 +433,31 @@ const _send = async (to, subject, html) => {
         subject,
         html,
       });
+      console.log(`✅ [EMAIL SUCCESS - GMAIL SMTP] Message ID: ${info.messageId}`);
       logger.info(`📧 Email sent via Gmail SMTP to ${to} (ID: ${info.messageId})`);
       return;
     }
 
     if (!env.RESEND_API_KEY || env.RESEND_API_KEY.startsWith("dummy")) {
+      console.warn(`⚠️ [EMAIL SKIPPED] No SMTP or Resend API key configured for ${to}`);
       logger.warn(`⚠️ Neither SMTP nor RESEND_API_KEY is configured — email to ${to} skipped.`);
       return;
     }
 
+    console.log(`⚙️ Provider: Resend API (From: ${FROM})`);
     const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+
     if (error) {
+      console.error(`❌ [EMAIL ERROR - RESEND API REJECTED]:`, JSON.stringify(error, null, 2));
       logger.error(`❌ Resend API error [${to}]: ${error.message || JSON.stringify(error)}`);
-      throw new Error(error.message || JSON.stringify(error));
+      throw new Error(`Resend API Error: ${error.message || JSON.stringify(error)}`);
     }
+
+    console.log(`✅ [EMAIL SUCCESS - RESEND] Message ID: ${data?.id || 'OK'}`);
     logger.info(`📧 Email sent via Resend to ${to} (Message ID: ${data?.id || 'ok'})`);
   } catch (err) {
-    logger.error(`❌ Email dispatch failed [${to}]: ${err.message}`);
+    console.error(`❌ [EMAIL DISPATCH FAILED FOR ${to}]:`, err.message || err);
+    logger.error(`❌ Email dispatch failed [${to}]: ${err.stack || err.message}`);
     throw err;
   }
 };
