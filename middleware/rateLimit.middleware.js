@@ -7,6 +7,7 @@ export const standardLimiter = rateLimit({
   max: env.RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   handler: (req, res) => {
     sendError(res, "Too many requests, please try again later.", 429);
   },
@@ -14,9 +15,10 @@ export const standardLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Strict limit for auth paths
+  max: 20, // Limit for auth paths
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   handler: (req, res) => {
     sendError(res, "Too many authentication attempts, please try again later.", 429);
   },
@@ -24,9 +26,10 @@ export const authLimiter = rateLimit({
 
 export const publicFeedbackLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // Very strict limit for public media file uploads
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   handler: (req, res) => {
     sendError(res, "Too many feedback submissions, please try again later.", 429);
   },

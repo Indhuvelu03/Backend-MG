@@ -15,6 +15,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust reverse proxy (Render / Cloudflare)
+app.set("trust proxy", 1);
+
 // Secure headers
 app.use(helmet({
   contentSecurityPolicy: false, // allow inline scripts for Vite SPA
