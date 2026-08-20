@@ -11,7 +11,7 @@ import { logger }                  from "../utils/logger.js";
 
 // Fraud escalation threshold
 const FRAUD_SCORE_THRESHOLD = 60;
-const MANAGER_EMAIL = process.env.MANAGER_EMAIL || "manager@autoaudit.in";
+const MANAGER_EMAIL = process.env.MANAGER_EMAIL;
 
 // Helper — fire-and-forget notification (never blocks the worker)
 const notify = (name, data) =>

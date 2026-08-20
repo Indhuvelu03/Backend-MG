@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: autoaudit-api
+    runtime: node
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+
+  - type: worker
+    name: autoaudit-automation-worker
+    runtime: node
+    buildCommand: npm ci
+    startCommand: npm run start:worker

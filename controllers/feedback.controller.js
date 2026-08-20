@@ -7,6 +7,7 @@ import { FeedbackLink } from "../models/FeedbackLink.js";
 import { transcriptionQueue } from "../jobs/queue.js";
 import { sendSuccess } from "../utils/responseHandler.js";
 import { AppError } from "../utils/AppError.js";
+import { logger } from "../utils/logger.js";
 
 export const createLink = async (req, res, next) => {
   try {
@@ -75,11 +76,14 @@ export const submitFeedback = async (req, res, next) => {
     // 5. Mark link as submitted (first use = expired)
     await FeedbackLink.updateById(link.id, { status: "SUBMITTED" });
 
-    // 6. Queue transcription job (non-blocking)
-    transcriptionQueue.add("transcribe-audio", {
+    // 6. The request is only successful once durable queueing succeeds.
+    // This prevents an uploaded recording from appearing accepted while no
+    // automation can ever process it.
+    const job = await transcriptionQueue.add("transcribe-audio", {
       complaintId: complaint.id,
-    }).catch(err => console.error("Failed to queue transcription:", err));
+    }, { jobId: `transcribe-${complaint.id}` });
+    logger.info(`Queued transcription job ${job.id} for complaint ${complaint.id}`);
 
-    sendSuccess(res, "Feedback submitted successfully", complaint, 201);
+    sendSuccess(res, "Feedback submitted and queued for processing", { complaint, jobId: job.id }, 201);
   } catch (error) { next(error); }
 };

@@ -88,11 +88,11 @@ export const uploadAudio = async (req, res, next) => {
     });
 
     // Enqueue transcription job
-    await transcriptionQueue.add("transcribe-audio", {
+    const job = await transcriptionQueue.add("transcribe-audio", {
       complaintId: complaint.id,
-    });
+    }, { jobId: `transcribe-${complaint.id}` });
 
-    sendSuccess(res, "Audio uploaded and transcription queued", updated, 200);
+    sendSuccess(res, "Audio uploaded and transcription queued", { complaint: updated, jobId: job.id }, 200);
   } catch (error) {
     next(error);
   }

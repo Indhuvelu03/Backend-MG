@@ -4,12 +4,6 @@ import { connectDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 
-// Start all BullMQ workers
-import "./jobs/transcription.worker.js";
-import "./jobs/invoiceExtraction.worker.js";
-import "./jobs/comparison.worker.js";
-import "./jobs/notification.worker.js";
-
 const startServer = async () => {
   try {
     // Verify Supabase connection

@@ -10,25 +10,28 @@ export const errorHandler = (err, req, res, next) => {
     stack: err.stack,
     path: req.path,
     method: req.method,
+    requestId: req.requestId,
   });
 
   if (err instanceof AppError) {
-    sendError(res, err.message, err.statusCode, err.errors);
+    sendError(res, err.message, err.statusCode, { ...err.errors, requestId: req.requestId });
     return;
   }
 
   // Handle mongoose validation errors
   if (err.name === "ValidationError") {
-    sendError(res, "Validation Error", 400, { message: err.message });
+    sendError(res, "Validation Error", 400, { message: err.message, requestId: req.requestId });
     return;
   }
 
   if (err.name === "CastError") {
-    sendError(res, "Invalid resource identifier format", 400);
+    sendError(res, "Invalid resource identifier format", 400, { requestId: req.requestId });
     return;
   }
 
   // Catch-all
-  const message = env.NODE_ENV === "production" ? "Internal Server Error" : err.message;
-  sendError(res, message, 500);
+  const message = env.NODE_ENV === "production"
+    ? `Internal Server Error. Reference: ${req.requestId}`
+    : err.message;
+  sendError(res, message, 500, { requestId: req.requestId });
 };

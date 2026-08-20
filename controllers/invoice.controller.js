@@ -37,11 +37,11 @@ export const uploadInvoice = async (req, res, next) => {
     });
 
     // 5. Queue extraction job
-    await invoiceExtractionQueue.add("extract-invoice-text", {
+    const job = await invoiceExtractionQueue.add("extract-invoice-text", {
       invoiceId: invoice.id,
-    });
+    }, { jobId: `extract-${invoice.id}` });
 
-    sendSuccess(res, "Invoice uploaded. Text extraction queued.", invoice, 201);
+    sendSuccess(res, "Invoice uploaded and text extraction queued", { invoice, jobId: job.id }, 201);
   } catch (error) { next(error); }
 };
 
