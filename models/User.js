@@ -30,6 +30,12 @@ export const User = {
     return count ?? 0;
   },
 
+  async findAll() {
+    const { data, error } = await supabase.from(TABLE).select("id,name,email,role,is_active,created_at").order("created_at", { ascending: false });
+    if (error || !data) return [];
+    return data.map(norm);
+  },
+
   async create(data) {
     const hashed = await bcrypt.hash(data.password, 10);
     const { data: row, error } = await supabase

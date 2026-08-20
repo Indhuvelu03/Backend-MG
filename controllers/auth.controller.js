@@ -31,3 +31,10 @@ export const getProfile = async (req, res, next) => {
     sendSuccess(res, "Profile fetched successfully", req.user, 200);
   } catch (error) { next(error); }
 };
+
+export const listUsers = async (req, res, next) => {
+  try {
+    const users = await User.findAll();
+    sendSuccess(res, "Users fetched successfully", users, 200);
+  } catch (error) { next(error); }
+};
