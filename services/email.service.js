@@ -1,5 +1,6 @@
-// services/email.service.js — Full customer lifecycle notifications via Resend
+// services/email.service.js — Full customer lifecycle notifications via Resend & Nodemailer SMTP
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
 
@@ -412,16 +413,35 @@ export const sendFraudEscalation = async ({ managerEmail, customerName, vehicleN
 // ── Internal send helper ───────────────────────────────────────────────────────
 const _send = async (to, subject, html) => {
   try {
-    if (!env.RESEND_API_KEY || env.RESEND_API_KEY.startsWith("dummy")) {
-      logger.warn(`⚠️ RESEND_API_KEY is missing or invalid — email to ${to} skipped.`);
+    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+    const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_PASS;
+
+    if (smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: { user: smtpUser, pass: smtpPass },
+      });
+      const info = await transporter.sendMail({
+        from: `${APP} <${smtpUser}>`,
+        to,
+        subject,
+        html,
+      });
+      logger.info(`📧 Email sent via Gmail SMTP to ${to} (ID: ${info.messageId})`);
       return;
     }
+
+    if (!env.RESEND_API_KEY || env.RESEND_API_KEY.startsWith("dummy")) {
+      logger.warn(`⚠️ Neither SMTP nor RESEND_API_KEY is configured — email to ${to} skipped.`);
+      return;
+    }
+
     const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
     if (error) {
       logger.error(`❌ Resend API error [${to}]: ${error.message || JSON.stringify(error)}`);
       throw new Error(error.message || JSON.stringify(error));
     }
-    logger.info(`📧 Email sent successfully to ${to} (Message ID: ${data?.id || 'ok'})`);
+    logger.info(`📧 Email sent via Resend to ${to} (Message ID: ${data?.id || 'ok'})`);
   } catch (err) {
     logger.error(`❌ Email dispatch failed [${to}]: ${err.message}`);
     throw err;
