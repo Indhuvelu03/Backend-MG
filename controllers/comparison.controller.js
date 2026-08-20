@@ -39,3 +39,11 @@ export const getComparison = async (req, res, next) => {
     sendSuccess(res, "Comparison retrieved successfully", comparison, 200);
   } catch (error) { next(error); }
 };
+
+export const getAuditReport = async (req, res, next) => {
+  try {
+    const comparison = await Comparison.findOne({ complaintId: req.params.complaintId });
+    if (!comparison?.reportUrl) throw new AppError("Audit report is not ready yet", 404);
+    sendSuccess(res, "Audit report is ready", { reportUrl: comparison.reportUrl }, 200);
+  } catch (error) { next(error); }
+};

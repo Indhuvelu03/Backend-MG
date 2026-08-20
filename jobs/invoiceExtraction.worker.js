@@ -6,6 +6,7 @@ import { Complaint }                            from "../models/Complaint.js";
 import * as storageService                      from "../services/storage.service.js";
 import * as pdfService                          from "../services/pdf.service.js";
 import * as ocrService                          from "../services/ocr.service.js";
+import { parseInvoiceLineItems }                from "../services/invoiceParser.service.js";
 import { aiComparisonQueue, notificationsQueue } from "./queue.js";
 import { logger }                               from "../utils/logger.js";
 
@@ -46,6 +47,7 @@ export const invoiceExtractionWorker = new Worker(
         status: "EXTRACTED",
         extractedText,
         extractionMethod,
+        extractedItems: parseInvoiceLineItems(extractedText),
       });
 
       logger.info(`✅ Invoice text extracted via ${extractionMethod}: ${extractedText.length} chars`);

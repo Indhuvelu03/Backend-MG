@@ -25,6 +25,9 @@ const envSchema = z.object({
   // Resend (Email)
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().min(1),
+  // Comma-separated priority, e.g. "whatsapp,sms,email". Keep email-only
+  // until a live Twilio account is configured.
+  NOTIFICATION_CHANNELS: z.string().default("email"),
 
   // Redis / BullMQ (Upstash)
   REDIS_URL: z.string().min(1).default("redis://127.0.0.1:6379"),

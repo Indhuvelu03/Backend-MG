@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   complaint_id      UUID NOT NULL REFERENCES complaints(id) ON DELETE CASCADE,
   file_url          TEXT NOT NULL,
   extracted_text    TEXT,
+  extracted_items   JSONB DEFAULT '[]',
   extraction_method TEXT CHECK (extraction_method IN ('DIGITAL','OCR')) DEFAULT 'DIGITAL',
   uploaded_by       UUID REFERENCES users(id),
   status            TEXT CHECK (status IN ('UPLOADED','EXTRACTING','EXTRACTED','FAILED')) DEFAULT 'UPLOADED',
@@ -82,6 +83,7 @@ CREATE TABLE IF NOT EXISTS comparisons (
   score               NUMERIC(5,2) NOT NULL CHECK (score >= 0 AND score <= 100),
   status              TEXT CHECK (status IN ('FULL_MATCH','PARTIAL_MATCH','MISMATCH')) NOT NULL,
   summary             TEXT NOT NULL,
+  report_url          TEXT,
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 

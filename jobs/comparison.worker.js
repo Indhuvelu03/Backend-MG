@@ -8,6 +8,8 @@ import * as aiComparisonService    from "../services/aiComparison.service.js";
 import { Customer }                from "../models/Customer.js";
 import { notificationsQueue }      from "./queue.js";
 import { logger }                  from "../utils/logger.js";
+import * as storageService         from "../services/storage.service.js";
+import { generateAuditReportPdf }  from "../services/auditReport.service.js";
 
 // Fraud escalation threshold
 const FRAUD_SCORE_THRESHOLD = 60;
@@ -41,6 +43,17 @@ export const comparisonWorker = new Worker(
 
       // Remove old comparisons, create fresh one
       await Comparison.deleteMany({ complaintId });
+      const customer = await Customer.findById(complaint.customerId);
+      const reportUrl = await storageService.uploadInvoice(
+        generateAuditReportPdf({
+          customer: customer || { name: "Customer" },
+          complaint,
+          invoice,
+          comparison: results,
+        }),
+        `reports/audit_${complaintId}_${Date.now()}.pdf`,
+        "application/pdf",
+      );
       await Comparison.create({
         complaintId,
         invoiceId,
@@ -50,6 +63,7 @@ export const comparisonWorker = new Worker(
         score:             results.score,
         status:            results.status,
         summary:           results.summary,
+        reportUrl,
       });
 
       await Complaint.updateById(complaintId, { status: "COMPARED" });
@@ -60,12 +74,12 @@ export const comparisonWorker = new Worker(
         complaintId,
         score:   results.score,
         summary: results.summary,
+        reportUrl,
       });
 
       // ── Fraud escalation if score < threshold ───────────────────────────────
       if (results.score < FRAUD_SCORE_THRESHOLD) {
         logger.warn(`⚠️ FRAUD FLAG: score ${results.score}% for complaint ${complaintId}`);
-        const customer = await Customer.findById(complaint.customerId);
         if (customer) {
           const branchManagerEmail = customer.serviceCenterManagerEmail || customer.managerEmail || customer.service_center_manager_email || MANAGER_EMAIL;
           await notify("fraud-escalation", {

@@ -13,6 +13,7 @@ const norm = (row) => {
     matchedIssues:     row.matched_issues     || [],
     missingIssues:     row.missing_issues     || [],
     extraInvoiceItems: row.extra_invoice_items || [],
+    reportUrl:          row.report_url,
     createdAt:         row.created_at,
   };
 };
@@ -30,6 +31,7 @@ export const Comparison = {
         score:               data.score,
         status:              data.status,
         summary:             data.summary,
+        report_url:          data.reportUrl || null,
       })
       .select()
       .single();

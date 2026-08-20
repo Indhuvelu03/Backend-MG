@@ -11,6 +11,7 @@ const norm = (row) => {
     complaintId:      row.complaint_id,
     fileUrl:          row.file_url,
     extractedText:    row.extracted_text,
+    extractedItems:   row.extracted_items || [],
     extractionMethod: row.extraction_method,
     uploadedBy:       row.uploaded_by,
     createdAt:        row.created_at,
@@ -59,6 +60,7 @@ export const Invoice = {
     if (updates.status           !== undefined) row.status            = updates.status;
     if (updates.extractedText    !== undefined) row.extracted_text    = updates.extractedText;
     if (updates.extracted_text   !== undefined) row.extracted_text    = updates.extracted_text;
+    if (updates.extractedItems   !== undefined) row.extracted_items   = updates.extractedItems;
     if (updates.extractionMethod !== undefined) row.extraction_method = updates.extractionMethod;
     if (updates.extraction_method!== undefined) row.extraction_method = updates.extraction_method;
 

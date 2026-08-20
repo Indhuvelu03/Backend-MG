@@ -1,6 +1,6 @@
 // routes/comparison.routes.js
 import { Router } from "express";
-import { analyzeComparison, getComparison } from "../controllers/comparison.controller.js";
+import { analyzeComparison, getComparison, getAuditReport } from "../controllers/comparison.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/role.middleware.js";
 
@@ -71,6 +71,12 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
+router.get(
+  "/:complaintId/report",
+  authorizeRoles("ADMIN", "STAFF"),
+  getAuditReport,
+);
+
 router.get(
   "/:complaintId",
   authorizeRoles("ADMIN", "STAFF"),

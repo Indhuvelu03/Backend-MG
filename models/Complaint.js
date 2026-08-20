@@ -58,6 +58,8 @@ export const Complaint = {
   async updateById(id, updates) {
     const row = {};
     if (updates.status            !== undefined) row.status             = updates.status;
+    if (updates.audioUrl          !== undefined) row.audio_url           = updates.audioUrl;
+    if (updates.audio_url         !== undefined) row.audio_url           = updates.audio_url;
     if (updates.transcript        !== undefined) row.transcript         = updates.transcript;
     if (updates.language          !== undefined) row.language           = updates.language;
     if (updates.confidence_score  !== undefined) row.confidence_score   = updates.confidence_score;

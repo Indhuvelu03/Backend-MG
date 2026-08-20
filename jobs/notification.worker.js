@@ -4,6 +4,10 @@ import { FeedbackLink } from "../models/FeedbackLink.js";
 import { Complaint } from "../models/Complaint.js";
 import { Customer } from "../models/Customer.js";
 import * as email from "../services/email.service.js";
+import * as sms from "../services/sms.service.js";
+import * as whatsapp from "../services/whatsapp.service.js";
+import { isLive as isTwilioLive } from "../services/twilio.service.js";
+import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
 
 const loadContext = async (complaintId) => {
@@ -14,16 +18,37 @@ const loadContext = async (complaintId) => {
   return { complaint, customer };
 };
 
-const deliverCustomerNotification = async (customer, emailTask) => {
-  if (!customer.email) throw new Error(`Customer ${customer.id} has no email address`);
-  await emailTask();
+const channelPriority = env.NOTIFICATION_CHANNELS.split(",").map((channel) => channel.trim().toLowerCase());
+
+// Future-ready fallback chain. With the default "email" setting this only
+// calls Resend. When Twilio is live, set whatsapp,sms,email to use the exact
+// WhatsApp -> SMS -> email order requested by the product workflow.
+const deliverCustomerNotification = async (customer, tasks) => {
+  const failures = [];
+  for (const channel of channelPriority) {
+    const task = tasks[channel];
+    const canUse = channel === "email" ? Boolean(customer.email) : Boolean(customer.mobile && isTwilioLive());
+    if (!task || !canUse) continue;
+    try {
+      await task();
+      logger.info(`Notification delivered via ${channel} to customer ${customer.id}`);
+      return channel;
+    } catch (error) {
+      failures.push(`${channel}: ${error.message}`);
+      logger.warn(`Notification ${channel} failed for customer ${customer.id}; trying fallback`);
+    }
+  }
+  throw new Error(`No notification channel delivered: ${failures.join("; ") || "no configured recipient/channel"}`);
 };
 
 const deliverInvite = async (customer, link) => {
-  if (link.sentVia?.email) return;
-  if (!customer.email) throw new Error(`Customer ${customer.id} has no email address`);
-  await email.sendFeedbackInvite(customer, link);
-  await FeedbackLink.updateById(link.id, { sentVia: { ...link.sentVia, email: true } });
+  const tasks = {
+    email: () => email.sendFeedbackInvite(customer, link),
+    sms: () => sms.sendFeedbackInvite(customer, link),
+    whatsapp: () => whatsapp.sendFeedbackInvite(customer, link),
+  };
+  const channel = await deliverCustomerNotification(customer, tasks);
+  await FeedbackLink.updateById(link.id, { sentVia: { ...link.sentVia, [channel]: true } });
 };
 
 export const notificationWorker = new Worker("notifications", async (job) => {
@@ -46,19 +71,19 @@ export const notificationWorker = new Worker("notifications", async (job) => {
   const { complaint, customer } = await loadContext(job.data.complaintId);
   switch (job.name) {
     case "complaint-received":
-      return deliverCustomerNotification(customer, () => email.sendComplaintReceived(customer, complaint));
+      return deliverCustomerNotification(customer, { email: () => email.sendComplaintReceived(customer, complaint), sms: () => sms.sendComplaintReceived(customer, complaint), whatsapp: () => whatsapp.sendComplaintReceived(customer, complaint) });
     case "voice-processing":
-      return deliverCustomerNotification(customer, () => email.sendVoiceNoteProcessing(customer, complaint));
+      return deliverCustomerNotification(customer, { email: () => email.sendVoiceNoteProcessing(customer, complaint) });
     case "invoice-uploaded":
-      return deliverCustomerNotification(customer, () => email.sendInvoiceUploaded(customer, complaint));
+      return deliverCustomerNotification(customer, { email: () => email.sendInvoiceUploaded(customer, complaint), sms: () => sms.sendInvoiceUploaded(customer, complaint), whatsapp: () => whatsapp.sendInvoiceUploaded(customer, complaint) });
     case "audit-complete":
-      return deliverCustomerNotification(customer, () => email.sendAuditComplete(customer, complaint, job.data.score, job.data.summary));
+      return deliverCustomerNotification(customer, { email: () => email.sendAuditComplete(customer, complaint, job.data.score, job.data.summary, job.data.reportUrl), sms: () => sms.sendAuditComplete(customer, complaint, job.data.score), whatsapp: () => whatsapp.sendAuditComplete(customer, complaint, job.data.score) });
     case "needs-review":
-      return deliverCustomerNotification(customer, () => email.sendNeedsReview(customer, complaint));
+      return deliverCustomerNotification(customer, { email: () => email.sendNeedsReview(customer, complaint) });
     case "processing-failed":
-      return deliverCustomerNotification(customer, () => email.sendProcessingFailed(customer, complaint));
+      return deliverCustomerNotification(customer, { email: () => email.sendProcessingFailed(customer, complaint) });
     case "status-update":
-      return deliverCustomerNotification(customer, () => email.sendStatusUpdate(customer, job.data.status, complaint.vehicleNumber));
+      return deliverCustomerNotification(customer, { email: () => email.sendStatusUpdate(customer, job.data.status, complaint.vehicleNumber) });
     default:
       throw new Error(`Unknown notification job type: ${job.name}`);
   }

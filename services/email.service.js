@@ -184,7 +184,7 @@ export const sendInvoiceUploaded = async (customer, complaint) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 4. AI AUDIT COMPLETE — Match vs Mismatch Customer Messages
 // ═══════════════════════════════════════════════════════════════════════════════
-export const sendAuditComplete = async (customer, complaint, score, summary) => {
+export const sendAuditComplete = async (customer, complaint, score, summary, reportUrl) => {
   if (!customer?.email) return;
   const vNum = complaint.vehicleNumber || complaint.vehicle_number;
   const vMod = customer.vehicle_model || customer.vehicleModel || "";
@@ -215,6 +215,7 @@ export const sendAuditComplete = async (customer, complaint, score, summary) => 
         { label: "Service Verified & Ready",done: true, active: false },
       ])}
 
+      ${reportUrl ? ctaButton("Download Your Audit Report (PDF)", reportUrl, "#059669") : ""}
       <p style="margin:16px 0 0;font-size:13px;color:#71717A;line-height:1.6;">
         Thank you for choosing ${sc}. Please bring your photo ID when collecting your vehicle.
       </p>`;
@@ -244,6 +245,7 @@ export const sendAuditComplete = async (customer, complaint, score, summary) => 
         { label: "Quality Audit Review",   done: false, active: true },
       ])}
 
+      ${reportUrl ? ctaButton("Download Your Audit Report (PDF)", reportUrl, "#D97706") : ""}
       <p style="margin:16px 0 0;font-size:13px;color:#71717A;line-height:1.6;">
         You don't need to take any action. We will send you a final confirmation as soon as Quality Assurance is complete.
       </p>`;
