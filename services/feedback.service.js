@@ -23,9 +23,19 @@ export const createFeedbackLink = async (customerId) => {
 export const autoCreateAndSendLink = async (customerId) => {
   const link = await createFeedbackLink(customerId);
 
-  await notificationsQueue.add("dispatch-invite", {
-    feedbackLinkId: link.id,
-  });
+  try {
+    await notificationsQueue.add("dispatch-invite", {
+      feedbackLinkId: link.id,
+    });
+  } catch (err) {
+    const { logger } = await import("../utils/logger.js");
+    const { sendFeedbackInvite } = await import("./email.service.js");
+    logger.warn(`⚠️ Notifications queue dispatch failed, falling back to direct email: ${err.message}`);
+    const customer = await Customer.findById(customerId);
+    if (customer?.email) {
+      await sendFeedbackInvite(customer, link).catch(e => logger.error(`Direct email error: ${e.message}`));
+    }
+  }
 
   return link;
 };

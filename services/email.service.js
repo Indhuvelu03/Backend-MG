@@ -412,10 +412,18 @@ export const sendFraudEscalation = async ({ managerEmail, customerName, vehicleN
 // ── Internal send helper ───────────────────────────────────────────────────────
 const _send = async (to, subject, html) => {
   try {
-    const { error } = await resend.emails.send({ from: FROM, to, subject, html });
-    if (error) throw new Error(error.message || JSON.stringify(error));
+    if (!env.RESEND_API_KEY || env.RESEND_API_KEY.startsWith("dummy")) {
+      logger.warn(`⚠️ RESEND_API_KEY is missing or invalid — email to ${to} skipped.`);
+      return;
+    }
+    const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+    if (error) {
+      logger.error(`❌ Resend API error [${to}]: ${error.message || JSON.stringify(error)}`);
+      throw new Error(error.message || JSON.stringify(error));
+    }
+    logger.info(`📧 Email sent successfully to ${to} (Message ID: ${data?.id || 'ok'})`);
   } catch (err) {
-    logger.error(`❌ Email failed [${to}]: ${err.message}`);
+    logger.error(`❌ Email dispatch failed [${to}]: ${err.message}`);
     throw err;
   }
 };
