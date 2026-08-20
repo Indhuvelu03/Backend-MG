@@ -78,6 +78,15 @@ export const FeedbackLink = {
     return (data || []).map(r => norm(r, r.customer));
   },
 
+  async expirePendingLinks() {
+    const { error } = await supabase
+      .from(TABLE)
+      .update({ status: "EXPIRED" })
+      .eq("status", "PENDING")
+      .lt("expires_at", new Date().toISOString());
+    if (error) throw new Error(error.message);
+  },
+
   async updateById(id, updates) {
     const row = {
       status:            updates.status,

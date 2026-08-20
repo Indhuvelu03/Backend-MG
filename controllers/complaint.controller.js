@@ -3,7 +3,7 @@ import { Complaint } from "../models/Complaint.js";
 import { sendSuccess } from "../utils/responseHandler.js";
 import { AppError } from "../utils/AppError.js";
 import * as storageService from "../services/storage.service.js";
-import { transcriptionQueue } from "../jobs/queue.js";
+import { transcriptionQueue, notificationsQueue } from "../jobs/queue.js";
 
 export const createComplaint = async (req, res, next) => {
   try {
@@ -43,9 +43,14 @@ export const listComplaints = async (req, res, next) => {
 
 export const updateComplaint = async (req, res, next) => {
   try {
+    const existing = await Complaint.findById(req.params.id);
+    if (!existing) throw new AppError("Complaint not found", 404);
     const complaint = await Complaint.updateById(req.params.id, req.body);
-    if (!complaint) {
-      throw new AppError("Complaint not found", 404);
+    if (req.body.status && req.body.status !== existing.status) {
+      await notificationsQueue.add("status-update", {
+        complaintId: complaint.id,
+        status: complaint.status,
+      }, { jobId: `status-${complaint.id}-${complaint.status}` });
     }
     sendSuccess(res, "Complaint updated successfully", complaint, 200);
   } catch (error) {

@@ -15,7 +15,7 @@ const MANAGER_EMAIL = process.env.MANAGER_EMAIL;
 
 // Helper — fire-and-forget notification (never blocks the worker)
 const notify = (name, data) =>
-  notificationsQueue.add(name, data, { attempts: 2, removeOnComplete: true })
+  notificationsQueue.add(name, data, { attempts: 3, removeOnComplete: true })
     .catch(err => logger.warn(`⚠️ Could not queue notification [${name}]: ${err.message}`));
 
 export const comparisonWorker = new Worker(
