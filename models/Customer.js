@@ -82,6 +82,7 @@ export const Customer = {
     if (data.name)           updates.name           = data.name;
     if (data.mobile)         updates.mobile         = data.mobile;
     if (data.email)          updates.email          = data.email.toLowerCase();
+    if (data.vehicleNumber)  updates.vehicle_number = data.vehicleNumber.toUpperCase();
     if (data.vehicleModel)   updates.vehicle_model  = data.vehicleModel;
     if (data.serviceCenter)  updates.service_center = data.serviceCenter;
     if (data.serviceDate)    updates.service_date   = data.serviceDate;
