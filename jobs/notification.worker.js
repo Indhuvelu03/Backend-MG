@@ -3,6 +3,7 @@ import { redisConnectionOptions } from "../config/redis.js";
 import { FeedbackLink } from "../models/FeedbackLink.js";
 import { Complaint } from "../models/Complaint.js";
 import { Customer } from "../models/Customer.js";
+import { EmailActivity } from "../models/EmailActivity.js";
 import * as email from "../services/email.service.js";
 import * as sms from "../services/sms.service.js";
 import * as whatsapp from "../services/whatsapp.service.js";
@@ -49,6 +50,30 @@ const deliverInvite = async (customer, link) => {
   };
   const channel = await deliverCustomerNotification(customer, tasks);
   await FeedbackLink.updateById(link.id, { sentVia: { ...link.sentVia, [channel]: true } });
+  await EmailActivity.record({ customer, stage: "Feedback invite", channel, detail: "Secure feedback link sent" })
+    .catch((error) => logger.warn(`Email activity log failed: ${error.message}`));
+};
+
+const stageLabels = {
+  "complaint-received": "Complaint received",
+  "voice-processing": "Voice note processing",
+  "invoice-uploaded": "Invoice uploaded",
+  "audit-complete": "Audit complete",
+  "needs-review": "Manual review",
+  "processing-failed": "Processing issue",
+  "status-update": "Service status update",
+};
+
+const deliverAndLog = async (customer, job, tasks) => {
+  try {
+    const channel = await deliverCustomerNotification(customer, tasks);
+    await EmailActivity.record({ customer, stage: stageLabels[job.name] || job.name, channel, detail: job.data.status || null })
+      .catch((error) => logger.warn(`Email activity log failed: ${error.message}`));
+    return channel;
+  } catch (error) {
+    await EmailActivity.record({ customer, stage: stageLabels[job.name] || job.name, status: "FAILED", detail: error.message }).catch((logError) => logger.warn(`Email activity log failed: ${logError.message}`));
+    throw error;
+  }
 };
 
 export const notificationWorker = new Worker("notifications", async (job) => {
@@ -71,19 +96,19 @@ export const notificationWorker = new Worker("notifications", async (job) => {
   const { complaint, customer } = await loadContext(job.data.complaintId);
   switch (job.name) {
     case "complaint-received":
-      return deliverCustomerNotification(customer, { email: () => email.sendComplaintReceived(customer, complaint), sms: () => sms.sendComplaintReceived(customer, complaint), whatsapp: () => whatsapp.sendComplaintReceived(customer, complaint) });
+      return deliverAndLog(customer, job, { email: () => email.sendComplaintReceived(customer, complaint), sms: () => sms.sendComplaintReceived(customer, complaint), whatsapp: () => whatsapp.sendComplaintReceived(customer, complaint) });
     case "voice-processing":
-      return deliverCustomerNotification(customer, { email: () => email.sendVoiceNoteProcessing(customer, complaint) });
+      return deliverAndLog(customer, job, { email: () => email.sendVoiceNoteProcessing(customer, complaint) });
     case "invoice-uploaded":
-      return deliverCustomerNotification(customer, { email: () => email.sendInvoiceUploaded(customer, complaint), sms: () => sms.sendInvoiceUploaded(customer, complaint), whatsapp: () => whatsapp.sendInvoiceUploaded(customer, complaint) });
+      return deliverAndLog(customer, job, { email: () => email.sendInvoiceUploaded(customer, complaint), sms: () => sms.sendInvoiceUploaded(customer, complaint), whatsapp: () => whatsapp.sendInvoiceUploaded(customer, complaint) });
     case "audit-complete":
-      return deliverCustomerNotification(customer, { email: () => email.sendAuditComplete(customer, complaint, job.data.score, job.data.summary, job.data.reportUrl), sms: () => sms.sendAuditComplete(customer, complaint, job.data.score), whatsapp: () => whatsapp.sendAuditComplete(customer, complaint, job.data.score) });
+      return deliverAndLog(customer, job, { email: () => email.sendAuditComplete(customer, complaint, job.data.score, job.data.summary, job.data.reportUrl), sms: () => sms.sendAuditComplete(customer, complaint, job.data.score), whatsapp: () => whatsapp.sendAuditComplete(customer, complaint, job.data.score) });
     case "needs-review":
-      return deliverCustomerNotification(customer, { email: () => email.sendNeedsReview(customer, complaint) });
+      return deliverAndLog(customer, job, { email: () => email.sendNeedsReview(customer, complaint) });
     case "processing-failed":
-      return deliverCustomerNotification(customer, { email: () => email.sendProcessingFailed(customer, complaint) });
+      return deliverAndLog(customer, job, { email: () => email.sendProcessingFailed(customer, complaint) });
     case "status-update":
-      return deliverCustomerNotification(customer, { email: () => email.sendStatusUpdate(customer, job.data.status, complaint.vehicleNumber) });
+      return deliverAndLog(customer, job, { email: () => email.sendStatusUpdate(customer, job.data.status, complaint.vehicleNumber) });
     default:
       throw new Error(`Unknown notification job type: ${job.name}`);
   }

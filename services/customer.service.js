@@ -46,8 +46,23 @@ export const getCustomerById = async (id) => {
 };
 
 export const updateCustomer = async (id, data) => {
+  const previousCustomer = await Customer.findById(id);
+  if (!previousCustomer) throw new AppError("Customer not found", 404);
+
   const customer = await Customer.findByIdAndUpdate(id, data);
-  if (!customer) throw new AppError("Customer not found", 404);
+  const emailChanged = Boolean(data.email) && data.email.trim().toLowerCase() !== (previousCustomer.email || "").toLowerCase();
+  const vehicleChanged = Boolean(data.vehicleNumber) && data.vehicleNumber.trim().toUpperCase() !== (previousCustomer.vehicleNumber || "").toUpperCase();
+
+  // A changed destination or vehicle needs a new signed link and an updated email.
+  // Queueing keeps the edit endpoint responsive while the worker sends it reliably.
+  if (emailChanged || vehicleChanged) {
+    try {
+      const link = await autoCreateAndSendLink(customer.id);
+      logger.info(`📧 Updated feedback invite auto-queued for ${customer.name} — token: ${link.token}`);
+    } catch (err) {
+      logger.error(`⚠️ Updated feedback invite failed for ${customer.name}: ${err.message}`);
+    }
+  }
   return customer;
 };
 

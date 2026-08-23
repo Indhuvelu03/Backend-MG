@@ -8,6 +8,7 @@ import invoiceRouter from "./invoice.routes.js";
 import comparisonRouter from "./comparison.routes.js";
 import reportRouter from "./report.routes.js";
 import complaintRouter from "./complaint.routes.js";
+import emailActivityRouter from "./emailActivity.routes.js";
 
 
 export const apiRouter = Router();
@@ -20,3 +21,4 @@ apiRouter.use("/complaints", complaintRouter);
 apiRouter.use("/invoices", invoiceRouter);
 apiRouter.use("/comparison", comparisonRouter);
 apiRouter.use("/reports", reportRouter);
+apiRouter.use("/email-activity", emailActivityRouter);
