@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { authenticate } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/role.middleware.js";
+import { listServiceCenters, createServiceCenter, updateServiceCenter, deleteServiceCenter } from "../controllers/serviceCenter.controller.js";
+const router = Router();
+router.use(authenticate);
+router.get("/", authorizeRoles("ADMIN", "STAFF"), listServiceCenters);
+router.post("/", authorizeRoles("ADMIN"), createServiceCenter);
+router.put("/:id", authorizeRoles("ADMIN"), updateServiceCenter);
+router.delete("/:id", authorizeRoles("ADMIN"), deleteServiceCenter);
+export default router;

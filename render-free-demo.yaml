@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: autoaudit-demo
+    runtime: node
+    buildCommand: npm ci
+    startCommand: node worker.js & node server.js
+    healthCheckPath: /api/health

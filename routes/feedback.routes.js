@@ -5,6 +5,7 @@ import {
   listLinks,
   sendInvite,
   validateToken,
+  deleteLink,
 } from "../controllers/feedback.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/role.middleware.js";
@@ -30,6 +31,7 @@ router.post(
   validateRequest({ body: sendFeedbackLinkSchema }),
   sendInvite,
 );
+router.delete("/:id", authenticate, authorizeRoles("ADMIN", "STAFF"), deleteLink);
 
 router.get("/:token", validateToken);
 

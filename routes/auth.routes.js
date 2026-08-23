@@ -1,6 +1,7 @@
 // routes/auth.routes.js
 import { Router } from "express";
-import { register, login, getProfile, listUsers } from "../controllers/auth.controller.js";
+import { register, login, getProfile, listUsers, updateUser, deleteUser } from "../controllers/auth.controller.js";
+import { authorizeRoles } from "../middleware/role.middleware.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authLimiter } from "../middleware/rateLimit.middleware.js";
 import { validateRequest } from "../middleware/validate.middleware.js";
@@ -120,5 +121,7 @@ router.post("/login", authLimiter, validateRequest({ body: loginSchema }), login
  */
 router.get("/profile", authenticate, getProfile);
 router.get("/users", authenticate, listUsers);
+router.put("/users/:id", authenticate, authorizeRoles("ADMIN"), updateUser);
+router.delete("/users/:id", authenticate, authorizeRoles("ADMIN"), deleteUser);
 
 export default router;

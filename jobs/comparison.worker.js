@@ -6,6 +6,7 @@ import { Invoice }                 from "../models/Invoice.js";
 import { Comparison }              from "../models/Comparison.js";
 import * as aiComparisonService    from "../services/aiComparison.service.js";
 import { Customer }                from "../models/Customer.js";
+import { ServiceCenter }           from "../models/ServiceCenter.js";
 import { notificationsQueue }      from "./queue.js";
 import { logger }                  from "../utils/logger.js";
 import * as storageService         from "../services/storage.service.js";
@@ -81,7 +82,8 @@ export const comparisonWorker = new Worker(
       if (results.score < FRAUD_SCORE_THRESHOLD) {
         logger.warn(`⚠️ FRAUD FLAG: score ${results.score}% for complaint ${complaintId}`);
         if (customer) {
-          const branchManagerEmail = customer.serviceCenterManagerEmail || customer.managerEmail || customer.service_center_manager_email || MANAGER_EMAIL;
+          const serviceCenter = await ServiceCenter.findByName(customer.serviceCenter || customer.service_center).catch(() => null);
+          const branchManagerEmail = serviceCenter?.managerEmail || customer.serviceCenterManagerEmail || customer.managerEmail || customer.service_center_manager_email || MANAGER_EMAIL;
           await notify("fraud-escalation", {
             managerEmail:  branchManagerEmail,
             customerName:  customer.name,

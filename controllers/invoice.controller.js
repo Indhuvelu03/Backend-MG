@@ -52,3 +52,17 @@ export const getInvoice = async (req, res, next) => {
     sendSuccess(res, "Invoice retrieved successfully", invoice, 200);
   } catch (error) { next(error); }
 };
+
+export const deleteInvoicesForComplaint = async (req, res, next) => {
+  try {
+    const invoices = await Invoice.findAllByComplaintId(req.params.complaintId);
+    for (const invoice of invoices) {
+      if (invoice.fileUrl) {
+        const { bucket, path } = storageService.parseStorageUrl(invoice.fileUrl);
+        await storageService.deleteFile(path, bucket).catch(() => null);
+      }
+      await Invoice.deleteById(invoice.id);
+    }
+    sendSuccess(res, "Invoice files deleted", null);
+  } catch (error) { next(error); }
+};

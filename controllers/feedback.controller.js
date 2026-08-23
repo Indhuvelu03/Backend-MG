@@ -39,6 +39,10 @@ export const validateToken = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+export const deleteLink = async (req, res, next) => {
+  try { await FeedbackLink.deleteById(req.params.id); sendSuccess(res, "Feedback link deleted", null); } catch (error) { next(error); }
+};
+
 export const submitFeedback = async (req, res, next) => {
   try {
     const { token } = req.params;

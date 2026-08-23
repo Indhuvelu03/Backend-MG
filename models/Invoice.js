@@ -73,4 +73,10 @@ export const Invoice = {
     const { error } = await supabase.from(TABLE).delete().eq("id", id);
     if (error) throw new Error(error.message);
   },
+
+  async findAllByComplaintId(complaintId) {
+    const { data, error } = await supabase.from(TABLE).select("*").eq("complaint_id", complaintId);
+    if (error) throw new Error(error.message);
+    return (data || []).map(norm);
+  },
 };

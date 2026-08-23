@@ -38,3 +38,15 @@ export const listUsers = async (req, res, next) => {
     sendSuccess(res, "Users fetched successfully", users, 200);
   } catch (error) { next(error); }
 };
+
+export const updateUser = async (req, res, next) => {
+  try { sendSuccess(res, "User updated successfully", await User.update(req.params.id, req.body)); } catch (error) { next(error); }
+};
+
+export const deleteUser = async (req, res, next) => {
+  try {
+    if (req.params.id === req.user.id) throw new AppError("You cannot delete your own account", 400);
+    await User.delete(req.params.id);
+    sendSuccess(res, "User deleted successfully", null);
+  } catch (error) { next(error); }
+};

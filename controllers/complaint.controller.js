@@ -4,6 +4,7 @@ import { sendSuccess } from "../utils/responseHandler.js";
 import { AppError } from "../utils/AppError.js";
 import * as storageService from "../services/storage.service.js";
 import { transcriptionQueue, notificationsQueue } from "../jobs/queue.js";
+import { Invoice } from "../models/Invoice.js";
 
 export const createComplaint = async (req, res, next) => {
   try {
@@ -60,6 +61,19 @@ export const updateComplaint = async (req, res, next) => {
 
 export const deleteComplaint = async (req, res, next) => {
   try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) throw new AppError("Complaint not found", 404);
+    if (complaint.audioUrl) {
+      const { bucket, path } = storageService.parseStorageUrl(complaint.audioUrl);
+      await storageService.deleteFile(path, bucket).catch(() => null);
+    }
+    const invoices = await Invoice.findAllByComplaintId(complaint.id);
+    for (const invoice of invoices) {
+      if (invoice.fileUrl) {
+        const { bucket, path } = storageService.parseStorageUrl(invoice.fileUrl);
+        await storageService.deleteFile(path, bucket).catch(() => null);
+      }
+    }
     await Complaint.deleteById(req.params.id);
     sendSuccess(res, "Complaint deleted successfully", null, 200);
   } catch (error) {

@@ -100,4 +100,9 @@ export const FeedbackLink = {
     if (error) throw new Error(error.message);
     return norm(data);
   },
+
+  async deleteById(id) {
+    const { error } = await supabase.from(TABLE).delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
 };

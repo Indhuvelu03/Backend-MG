@@ -47,6 +47,19 @@ export const User = {
     return norm(row);
   },
 
+  async update(id, data) {
+    const updates = { name: data.name, role: data.role };
+    if (data.email) updates.email = data.email.toLowerCase();
+    const { data: row, error } = await supabase.from(TABLE).update(updates).eq("id", id).select("id,name,email,role,is_active,created_at").single();
+    if (error) throw new Error(error.message);
+    return norm(row);
+  },
+
+  async delete(id) {
+    const { error } = await supabase.from(TABLE).delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
   async comparePassword(storedHash, plainPassword) {
     return bcrypt.compare(plainPassword, storedHash);
   },

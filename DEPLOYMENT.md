@@ -16,6 +16,19 @@ worker process.
 frontend and backend, set Render's root directory to `backend-mg` for both
 services.
 
+## Render Free demo mode
+
+Render's free plan does not include a background-worker service and the web
+service can sleep after inactivity. For a live demo only, create one Web
+Service with the start command below (or use `render-free-demo.yaml`):
+
+```text
+node worker.js & node server.js
+```
+
+This starts the API and worker together after a request wakes the service.
+Use the two-service configuration above for reliable production automation.
+
 ## Required configuration
 
 Copy `.env.example` into each Render service's Environment page and set real

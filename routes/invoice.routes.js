@@ -1,6 +1,6 @@
 // routes/invoice.routes.js
 import { Router } from "express";
-import { uploadInvoice, getInvoice } from "../controllers/invoice.controller.js";
+import { uploadInvoice, getInvoice, deleteInvoicesForComplaint } from "../controllers/invoice.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/role.middleware.js";
 import { uploadInvoicePdf } from "../middleware/upload.middleware.js";
@@ -60,6 +60,7 @@ router.post(
   uploadInvoicePdf,
   uploadInvoice,
 );
+router.delete("/complaint/:complaintId", authorizeRoles("ADMIN", "STAFF"), deleteInvoicesForComplaint);
 
 /**
  * @swagger
