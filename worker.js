@@ -15,6 +15,7 @@ const startWorker = async () => {
       import("./jobs/comparison.worker.js"),
       import("./jobs/notification.worker.js"),
       import("./jobs/linkExpiry.worker.js"),
+      import("./jobs/slaMonitor.worker.js"),
     ]);
     stopHeartbeat = startWorkerHeartbeat();
     logger.info("Background workers are online and waiting for jobs");

@@ -14,6 +14,7 @@ const norm = (row) => {
     audioUrl:         row.audio_url,
     confidenceScore:  row.confidence_score,
     transcriptFlagged: row.transcript_flagged,
+    rating:           row.rating,
     createdAt:        row.created_at,
     updatedAt:        row.updated_at,
     // Compat: save method for legacy worker code
@@ -33,6 +34,7 @@ export const Complaint = {
         vehicle_number:   data.vehicleNumber?.toUpperCase(),
         audio_url:        data.audioUrl || null,
         transcript:       data.transcript || null,
+        rating:           data.rating || null,
         status:           data.status || "AUDIO_UPLOADED",
       })
       .select()
@@ -55,6 +57,12 @@ export const Complaint = {
     return (data || []).map(norm);
   },
 
+  async findByFeedbackLinkId(feedbackLinkId) {
+    const { data, error } = await supabase.from(TABLE).select("*").eq("feedback_link_id", feedbackLinkId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+    return norm(data);
+  },
+
   async updateById(id, updates) {
     const row = {};
     if (updates.status            !== undefined) row.status             = updates.status;
@@ -67,6 +75,7 @@ export const Complaint = {
     if (updates.transcript_flagged!== undefined) row.transcript_flagged = updates.transcript_flagged;
     if (updates.transcriptFlagged !== undefined) row.transcript_flagged = updates.transcriptFlagged;
     if (updates.error             !== undefined) row.error              = updates.error;
+    if (updates.rating            !== undefined) row.rating             = updates.rating;
     row.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase.from(TABLE).update(row).eq("id", id).select().single();

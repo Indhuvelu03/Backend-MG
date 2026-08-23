@@ -46,11 +46,12 @@ export const deleteLink = async (req, res, next) => {
 export const submitFeedback = async (req, res, next) => {
   try {
     const { token } = req.params;
-    const { vehicleNumber, feedbackText } = req.body;
+    const { vehicleNumber, feedbackText, rating } = req.body;
     const file = req.file;
 
     if (!file && !feedbackText?.trim()) throw new AppError("Please provide typed feedback or a voice recording", 400);
     if (!vehicleNumber) throw new AppError("Vehicle number is required", 400);
+    if (rating && (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5)) throw new AppError("Rating must be between 1 and 5", 400);
 
     // 1. Verify link + get customer
     const link     = await feedbackService.verifyFeedbackToken(token);
@@ -78,6 +79,7 @@ export const submitFeedback = async (req, res, next) => {
       vehicleNumber:  custVehicle.toUpperCase(),
       audioUrl,
       transcript:      feedbackText?.trim() || null,
+      rating:          rating ? Number(rating) : null,
       status:          file ? "AUDIO_UPLOADED" : "TRANSCRIBED",
     });
 

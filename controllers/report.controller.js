@@ -1,155 +1,27 @@
-// controllers/report.controller.js
+import { Complaint } from "../models/Complaint.js";
+import { Customer } from "../models/Customer.js";
 import { Comparison } from "../models/Comparison.js";
 import { FeedbackLink } from "../models/FeedbackLink.js";
 import { sendSuccess } from "../utils/responseHandler.js";
 
 export const getDashboardMetrics = async (req, res, next) => {
   try {
-    const { from, to, serviceCenter } = req.query;
-
-    // 1. Build Date Filters
-    const dateQuery = {};
-    if (from || to) {
-      dateQuery.createdAt = {};
-      if (from) {
-        dateQuery.createdAt.$gte = new Date(String(from));
-      }
-      if (to) {
-        dateQuery.createdAt.$lte = new Date(String(to));
-      }
+    const rows = await Promise.all((await Complaint.findAll()).map(async (complaint) => ({ complaint, customer: await Customer.findById(complaint.customerId), comparison: await Comparison.findOne({ complaintId: complaint.id }) })));
+    const filtered = rows.filter(row => !req.query.serviceCenter || (row.customer?.serviceCenter || row.customer?.service_center) === req.query.serviceCenter);
+    const audits = filtered.filter(row => row.comparison);
+    const averageScore = audits.length ? audits.reduce((sum, row) => sum + Number(row.comparison.score || 0), 0) / audits.length : 0;
+    const groups = new Map();
+    for (const row of audits) {
+      const name = row.customer?.serviceCenter || row.customer?.service_center || "Unassigned";
+      const group = groups.get(name) || { _id: name, auditVolume: 0, scoreTotal: 0, fullMatches: 0 };
+      group.auditVolume += 1; group.scoreTotal += Number(row.comparison.score || 0); if (row.comparison.status === "FULL_MATCH") group.fullMatches += 1; groups.set(name, group);
     }
-
-    // 2. Count feedback links
-    const totalLinks = await FeedbackLink.countDocuments(dateQuery);
-    const submittedLinks = await FeedbackLink.countDocuments({
-      ...dateQuery,
-      status: "SUBMITTED",
+    const generatedCount = await FeedbackLink.countDocuments();
+    const submittedCount = await FeedbackLink.countDocuments({ status: "SUBMITTED" });
+    sendSuccess(res, "Dashboard metrics fetched successfully", {
+      linkMetrics: { generatedCount, submittedCount, responseRate: generatedCount ? Number(((submittedCount / generatedCount) * 100).toFixed(2)) : 0 },
+      auditSummary: { totalAudited: audits.length, averageScore: Number(averageScore.toFixed(2)), fullMatches: audits.filter(row => row.comparison.status === "FULL_MATCH").length, partialMatches: audits.filter(row => row.comparison.status === "PARTIAL_MATCH").length, mismatches: audits.filter(row => row.comparison.status === "MISMATCH").length },
+      serviceCenterPerformance: [...groups.values()].map(group => ({ _id: group._id, avgScore: Number((group.scoreTotal / group.auditVolume).toFixed(2)), auditVolume: group.auditVolume, fullMatches: group.fullMatches })),
     });
-
-    // 3. Build aggregation match conditions
-    const comparisonMatch = {};
-    if (from || to) {
-      comparisonMatch.createdAt = {};
-      if (from) {
-        comparisonMatch.createdAt.$gte = new Date(String(from));
-      }
-      if (to) {
-        comparisonMatch.createdAt.$lte = new Date(String(to));
-      }
-    }
-
-    // 4. Construct Aggregation Pipelines
-    const summaryPipeline = [
-      { $match: comparisonMatch },
-      {
-        $lookup: {
-          from: "complaints",
-          localField: "complaintId",
-          foreignField: "_id",
-          as: "complaint",
-        },
-      },
-      { $unwind: "$complaint" },
-      {
-        $lookup: {
-          from: "customers",
-          localField: "complaint.customerId",
-          foreignField: "_id",
-          as: "customer",
-        },
-      },
-      { $unwind: "$customer" },
-    ];
-
-    if (serviceCenter) {
-      summaryPipeline.push({
-        $match: { "customer.serviceCenter": String(serviceCenter) },
-      });
-    }
-
-    summaryPipeline.push({
-      $group: {
-        _id: null,
-        averageScore: { $avg: "$score" },
-        totalAudited: { $sum: 1 },
-        fullMatches: {
-          $sum: { $cond: [{ $eq: ["$status", "FULL_MATCH"] }, 1, 0] },
-        },
-        partialMatches: {
-          $sum: { $cond: [{ $eq: ["$status", "PARTIAL_MATCH"] }, 1, 0] },
-        },
-        mismatches: {
-          $sum: { $cond: [{ $eq: ["$status", "MISMATCH"] }, 1, 0] },
-        },
-      },
-    });
-
-    const summaryResult = await Comparison.aggregate(summaryPipeline);
-    const summary = summaryResult[0] || {
-      averageScore: 0,
-      totalAudited: 0,
-      fullMatches: 0,
-      partialMatches: 0,
-      mismatches: 0,
-    };
-
-    // 5. Service Center performance breakdown
-    const serviceCenterPipeline = [
-      { $match: comparisonMatch },
-      {
-        $lookup: {
-          from: "complaints",
-          localField: "complaintId",
-          foreignField: "_id",
-          as: "complaint",
-        },
-      },
-      { $unwind: "$complaint" },
-      {
-        $lookup: {
-          from: "customers",
-          localField: "complaint.customerId",
-          foreignField: "_id",
-          as: "customer",
-        },
-      },
-      { $unwind: "$customer" },
-      {
-        $group: {
-          _id: "$customer.serviceCenter",
-          avgScore: { $avg: "$score" },
-          auditVolume: { $sum: 1 },
-          fullMatches: {
-            $sum: { $cond: [{ $eq: ["$status", "FULL_MATCH"] }, 1, 0] },
-          },
-        },
-      },
-      { $sort: { avgScore: -1 } },
-    ];
-
-    const performanceBreakdown = await Comparison.aggregate(serviceCenterPipeline);
-
-    sendSuccess(
-      res,
-      "Dashboard metrics fetched successfully",
-      {
-        linkMetrics: {
-          generatedCount: totalLinks,
-          submittedCount: submittedLinks,
-          responseRate: totalLinks ? Number(((submittedLinks / totalLinks) * 100).toFixed(2)) : 0,
-        },
-        auditSummary: {
-          totalAudited: summary.totalAudited,
-          averageScore: summary.averageScore ? Number(summary.averageScore.toFixed(2)) : 0,
-          fullMatches: summary.fullMatches,
-          partialMatches: summary.partialMatches,
-          mismatches: summary.mismatches,
-        },
-        serviceCenterPerformance: performanceBreakdown,
-      },
-      200,
-    );
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };

@@ -10,6 +10,8 @@ import reportRouter from "./report.routes.js";
 import complaintRouter from "./complaint.routes.js";
 import emailActivityRouter from "./emailActivity.routes.js";
 import serviceCenterRouter from "./serviceCenter.routes.js";
+import trackingRouter from "./tracking.routes.js";
+import managerRouter from "./manager.routes.js";
 
 
 export const apiRouter = Router();
@@ -24,3 +26,5 @@ apiRouter.use("/comparison", comparisonRouter);
 apiRouter.use("/reports", reportRouter);
 apiRouter.use("/email-activity", emailActivityRouter);
 apiRouter.use("/service-centers", serviceCenterRouter);
+apiRouter.use("/public/tracking", trackingRouter);
+apiRouter.use("/manager", managerRouter);

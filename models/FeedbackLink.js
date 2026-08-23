@@ -78,6 +78,14 @@ export const FeedbackLink = {
     return (data || []).map(r => norm(r, r.customer));
   },
 
+  async countDocuments({ status } = {}) {
+    let q = supabase.from(TABLE).select("id", { count: "exact", head: true });
+    if (status) q = q.eq("status", status);
+    const { count, error } = await q;
+    if (error) throw new Error(error.message);
+    return count || 0;
+  },
+
   async expirePendingLinks() {
     const { error } = await supabase
       .from(TABLE)

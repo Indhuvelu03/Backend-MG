@@ -14,6 +14,10 @@ const norm = (row) => {
     missingIssues:     row.missing_issues     || [],
     extraInvoiceItems: row.extra_invoice_items || [],
     reportUrl:          row.report_url,
+    reviewStatus:       row.review_status || "UNREVIEWED",
+    reviewNotes:        row.review_notes || null,
+    reviewedBy:         row.reviewed_by || null,
+    reviewedAt:         row.reviewed_at || null,
     createdAt:         row.created_at,
   };
 };
@@ -56,5 +60,11 @@ export const Comparison = {
   async deleteMany({ complaintId }) {
     const { error } = await supabase.from(TABLE).delete().eq("complaint_id", complaintId);
     if (error) throw new Error(error.message);
+  },
+
+  async updateReviewByComplaintId(complaintId, { reviewStatus, reviewNotes, reviewedBy }) {
+    const { data, error } = await supabase.from(TABLE).update({ review_status: reviewStatus, review_notes: reviewNotes || null, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString() }).eq("complaint_id", complaintId).select().single();
+    if (error) throw new Error(error.message);
+    return norm(data);
   },
 };

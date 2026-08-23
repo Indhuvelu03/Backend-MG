@@ -412,6 +412,12 @@ export const sendFraudEscalation = async ({ managerEmail, customerName, vehicleN
   logger.info(`📧 Fraud-escalation email → ${managerEmail} (vehicle: ${vehicleNumber}, score: ${score}%)`);
 };
 
+export const sendSlaEscalation = async ({ managerEmail, customerName, vehicleNumber, status, ageMinutes }) => {
+  const body = `<h2 style="margin:0 0 8px;font-size:18px;color:#18181B;">Automation SLA Alert</h2><p style="font-size:14px;color:#52525B;line-height:1.6;">Vehicle <strong>${vehicleNumber}</strong> for <strong>${customerName}</strong> has remained in <strong>${status}</strong> for ${ageMinutes} minutes. Please review the manager queue.</p>`;
+  await _send(managerEmail, `[SLA ALERT] ${vehicleNumber} needs review`, shell("#D97706", "⏱️", "Automation delay", body));
+  logger.info(`SLA escalation sent to ${managerEmail} for ${vehicleNumber}`);
+};
+
 // ── Internal send helper ───────────────────────────────────────────────────────
 const _send = async (to, subject, html) => {
   console.log(`\n=================== [EMAIL DISPATCH ATTEMPT] ===================`);
