@@ -1,6 +1,7 @@
 // controllers/invoice.controller.js — Supabase-based
 import { Complaint } from "../models/Complaint.js";
 import { Invoice } from "../models/Invoice.js";
+import { Comparison } from "../models/Comparison.js";
 import * as storageService from "../services/storage.service.js";
 import { invoiceExtractionQueue } from "../jobs/queue.js";
 import { sendSuccess } from "../utils/responseHandler.js";
@@ -56,6 +57,7 @@ export const getInvoice = async (req, res, next) => {
 export const deleteInvoicesForComplaint = async (req, res, next) => {
   try {
     const invoices = await Invoice.findAllByComplaintId(req.params.complaintId);
+    await Comparison.deleteMany({ complaintId: req.params.complaintId });
     for (const invoice of invoices) {
       if (invoice.fileUrl) {
         const { bucket, path } = storageService.parseStorageUrl(invoice.fileUrl);
