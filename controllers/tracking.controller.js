@@ -24,3 +24,18 @@ export const getPublicTracking = async (req, res, next) => {
     });
   } catch (error) { next(error); }
 };
+
+export const submitServiceRating = async (req, res, next) => {
+  try {
+    const rating = Number(req.body.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new AppError("Rating must be between 1 and 5", 400);
+    const link = await FeedbackLink.findByToken(req.params.token);
+    if (!link || link.status !== "SUBMITTED") throw new AppError("A completed feedback link is required", 400);
+    const complaint = await Complaint.findByFeedbackLinkId(link.id);
+    if (!complaint) throw new AppError("Complaint not found", 404);
+    const comparison = await Comparison.findOne({ complaintId: complaint.id });
+    if (!comparison) throw new AppError("Rating is available after the service audit is complete", 400);
+    await Complaint.updateById(complaint.id, { rating });
+    sendSuccess(res, "Thank you for rating your service experience", { rating }, 200);
+  } catch (error) { next(error); }
+};
