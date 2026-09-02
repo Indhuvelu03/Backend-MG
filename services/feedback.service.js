@@ -13,6 +13,7 @@ export const createFeedbackLink = async (customerId) => {
 
   return FeedbackLink.create({
     customerId,
+    dealershipId: customer.dealershipId || customer.dealership_id,
     token: generateSecureToken(20),
     expiresAt: new Date(Date.now() + EXPIRY_HOURS * 60 * 60 * 1000).toISOString(),
   });

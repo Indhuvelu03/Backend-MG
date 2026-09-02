@@ -105,13 +105,9 @@ export const transcriptionWorker = new Worker(
   }
 );
 
+import { handleWorkerError } from "../config/redis.js";
+
 transcriptionWorker.on("completed", (job) => logger.info(`✅ Transcription job ${job.id} done`));
 transcriptionWorker.on("failed",    (job, err) => logger.error(`❌ Transcription job ${job?.id} failed: ${err.message}`));
-transcriptionWorker.on("error",     (err) => {
-  if (err.message?.includes("ECONNRESET") || err.message?.includes("ETIMEDOUT")) {
-    logger.warn(`⚠️ Transcription worker Redis reconnecting: ${err.message}`);
-  } else {
-    logger.error(`❌ Transcription worker error: ${err.message}`);
-  }
-});
+transcriptionWorker.on("error",     (err) => handleWorkerError("Transcription", err));
 logger.info("✅ Transcription worker ready (Groq Whisper Large-v3 + customer notifications)");

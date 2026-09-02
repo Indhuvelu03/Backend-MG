@@ -14,12 +14,12 @@ import { createFeedbackLinkSchema, sendFeedbackLinkSchema } from "../validators/
 
 const router = Router();
 
-router.get("/", authenticate, authorizeRoles("ADMIN", "STAFF"), listLinks);
+router.get("/", authenticate, authorizeRoles("ADMIN", "DEALER", "STAFF"), listLinks);
 
 router.post(
   "/create",
   authenticate,
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   validateRequest({ body: createFeedbackLinkSchema }),
   createLink,
 );
@@ -27,11 +27,11 @@ router.post(
 router.post(
   "/send",
   authenticate,
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   validateRequest({ body: sendFeedbackLinkSchema }),
   sendInvite,
 );
-router.delete("/:id", authenticate, authorizeRoles("ADMIN", "STAFF"), deleteLink);
+router.delete("/:id", authenticate, authorizeRoles("ADMIN", "DEALER", "STAFF"), deleteLink);
 
 router.get("/:token", validateToken);
 

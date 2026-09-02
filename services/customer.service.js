@@ -6,7 +6,10 @@ import { logger } from "../utils/logger.js";
 
 export const createCustomer = async (data, createdBy) => {
   const vehicleUpper = data.vehicleNumber?.toUpperCase();
-  const existing = await Customer.findOne({ vehicleNumber: vehicleUpper });
+  const existing = await Customer.findOne({
+    vehicleNumber: vehicleUpper,
+    dealershipId: data.dealershipId,
+  });
   if (existing) throw new AppError("A customer with this vehicle number already exists", 400);
 
   const customer = await Customer.create({ ...data, vehicleNumber: vehicleUpper, createdBy });
@@ -30,6 +33,9 @@ export const getCustomersList = async (options = {}) => {
   const skip  = (page - 1) * limit;
 
   const query = {};
+  if (options.dealershipId) {
+    query.dealershipId = options.dealershipId;
+  }
   if (options.search) {
     const regex = new RegExp(options.search, "i");
     query.$or = [{ name: regex }, { vehicleNumber: regex }, { mobile: regex }, { serviceCenter: regex }];
@@ -52,10 +58,11 @@ export const updateCustomer = async (id, data) => {
   const customer = await Customer.findByIdAndUpdate(id, data);
   const emailChanged = Boolean(data.email) && data.email.trim().toLowerCase() !== (previousCustomer.email || "").toLowerCase();
   const vehicleChanged = Boolean(data.vehicleNumber) && data.vehicleNumber.trim().toUpperCase() !== (previousCustomer.vehicleNumber || "").toUpperCase();
+  const mobileChanged = Boolean(data.mobile) && data.mobile.replace(/\D/g, "") !== (previousCustomer.mobile || "").replace(/\D/g, "");
 
   // A changed destination or vehicle needs a new signed link and an updated email.
   // Queueing keeps the edit endpoint responsive while the worker sends it reliably.
-  if (emailChanged || vehicleChanged) {
+  if (emailChanged || vehicleChanged || mobileChanged) {
     try {
       const link = await autoCreateAndSendLink(customer.id);
       logger.info(`📧 Updated feedback invite auto-queued for ${customer.name} — token: ${link.token}`);

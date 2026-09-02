@@ -7,6 +7,8 @@ import {
   updateComplaint,
   deleteComplaint,
   uploadAudio,
+  streamAudio,
+  downloadAuditPdf,
 } from "../controllers/complaint.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/role.middleware.js";
@@ -14,8 +16,11 @@ import { uploadAudio as uploadAudioMiddleware } from "../middleware/upload.middl
 
 const router = Router();
 
-// Apply authentication to all complaint routes
+// Every complaint endpoint contains private customer information.
 router.use(authenticate);
+
+router.get("/:id/audio", authorizeRoles("ADMIN", "DEALER", "STAFF"), streamAudio);
+router.get("/:id/pdf", authorizeRoles("ADMIN", "DEALER", "STAFF"), downloadAuditPdf);
 
 /**
  * @swagger
@@ -52,7 +57,7 @@ router.use(authenticate);
  *       201:
  *         description: Complaint created successfully
  */
-router.post("/", authorizeRoles("ADMIN", "STAFF"), createComplaint);
+router.post("/", authorizeRoles("ADMIN", "DEALER", "STAFF"), createComplaint);
 
 /**
  * @swagger
@@ -82,7 +87,7 @@ router.post("/", authorizeRoles("ADMIN", "STAFF"), createComplaint);
  *       200:
  *         description: List of complaints
  */
-router.get("/", authorizeRoles("ADMIN", "STAFF"), listComplaints);
+router.get("/", authorizeRoles("ADMIN", "DEALER", "STAFF"), listComplaints);
 
 /**
  * @swagger
@@ -104,7 +109,7 @@ router.get("/", authorizeRoles("ADMIN", "STAFF"), listComplaints);
  *       404:
  *         description: Complaint not found
  */
-router.get("/:id", authorizeRoles("ADMIN", "STAFF"), getComplaint);
+router.get("/:id", authorizeRoles("ADMIN", "DEALER", "STAFF"), getComplaint);
 
 /**
  * @swagger
@@ -130,7 +135,7 @@ router.get("/:id", authorizeRoles("ADMIN", "STAFF"), getComplaint);
  *       200:
  *         description: Complaint updated
  */
-router.put("/:id", authorizeRoles("ADMIN", "STAFF"), updateComplaint);
+router.put("/:id", authorizeRoles("ADMIN", "DEALER", "STAFF"), updateComplaint);
 
 /**
  * @swagger
@@ -150,7 +155,7 @@ router.put("/:id", authorizeRoles("ADMIN", "STAFF"), updateComplaint);
  *       200:
  *         description: Complaint deleted
  */
-router.delete("/:id", authorizeRoles("ADMIN", "STAFF"), deleteComplaint);
+router.delete("/:id", authorizeRoles("ADMIN", "DEALER", "STAFF"), deleteComplaint);
 
 /**
  * @swagger
@@ -184,7 +189,7 @@ router.delete("/:id", authorizeRoles("ADMIN", "STAFF"), deleteComplaint);
  */
 router.post(
   "/:id/audio",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   uploadAudioMiddleware,
   uploadAudio
 );

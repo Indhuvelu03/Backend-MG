@@ -37,8 +37,9 @@ export const comparisonWorker = new Worker(
     if (!invoice.extractedText)   { logger.error(`No extracted text for ${invoiceId}`); return; }
 
     try {
+      const transcriptToCompare = complaint.englishTranscript || complaint.english_transcript || complaint.transcript;
       const results = await aiComparisonService.compareTranscriptAndInvoice(
-        complaint.transcript,
+        transcriptToCompare,
         invoice.extractedText,
       );
 
@@ -57,6 +58,7 @@ export const comparisonWorker = new Worker(
       );
       await Comparison.create({
         complaintId,
+        dealershipId: complaint.dealershipId || complaint.dealership_id,
         invoiceId,
         matchedIssues:     results.matchedIssues,
         missingIssues:     results.missingIssues,
@@ -66,6 +68,7 @@ export const comparisonWorker = new Worker(
         summary:           results.summary,
         reportUrl,
       });
+      await Complaint.updateById(complaintId, { serviceStatus: "AUDIT_COMPLETE" }).catch(() => null);
 
       await Complaint.updateById(complaintId, { status: "COMPARED" });
       logger.info(`✅ Comparison done: ${results.status} (${results.score}%)`);
@@ -111,13 +114,9 @@ export const comparisonWorker = new Worker(
   }
 );
 
+import { handleWorkerError } from "../config/redis.js";
+
 comparisonWorker.on("completed", (job) => logger.info(`✅ Comparison job ${job.id} done`));
 comparisonWorker.on("failed",    (job, err) => logger.error(`❌ Comparison job ${job?.id} failed: ${err.message}`));
-comparisonWorker.on("error",     (err) => {
-  if (err.message?.includes("ECONNRESET") || err.message?.includes("ETIMEDOUT")) {
-    logger.warn(`⚠️ Comparison worker Redis reconnecting: ${err.message}`);
-  } else {
-    logger.error(`❌ Comparison worker error: ${err.message}`);
-  }
-});
+comparisonWorker.on("error",     (err) => handleWorkerError("Comparison", err));
 logger.info("✅ AI comparison worker ready (Groq + audit-complete + fraud-escalation notifications)");

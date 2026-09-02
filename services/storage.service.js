@@ -4,12 +4,46 @@ import { logger } from "../utils/logger.js";
 
 const AUDIO_BUCKET   = "audio-complaints";
 const INVOICE_BUCKET = "invoice-pdfs";
+const readyBuckets = new Set();
+const PRIVATE_URL_TTL_SECONDS = 10 * 60;
+
+// Render deployments and fresh Supabase projects may not have the Storage
+// buckets created yet. The backend uses the service-role key, so it can safely
+// provision its own application buckets before the first upload.
+const ensureBucket = async (bucket) => {
+  if (readyBuckets.has(bucket)) return;
+
+  const { data: existing, error: lookupError } = await supabase.storage.getBucket(bucket);
+  if (existing) {
+    if (existing.public) {
+      const { error: privacyError } = await supabase.storage.updateBucket(bucket, { public: false });
+      if (privacyError) throw new Error(`Could not make Storage bucket private: ${privacyError.message}`);
+      logger.info(`🔒 Supabase Storage bucket made private: ${bucket}`);
+    }
+    readyBuckets.add(bucket);
+    return;
+  }
+
+  // A missing bucket returns an error from getBucket; only creation is relevant
+  // here. Any creation error is reported clearly to the upload caller.
+  const { error: createError } = await supabase.storage.createBucket(bucket, { public: false });
+  if (createError && !/already exists|duplicate/i.test(createError.message)) {
+    const reason = createError.message || lookupError?.message || "Unknown Storage error";
+    logger.error(`Storage bucket setup error (${bucket}): ${reason}`);
+    throw new Error(`Storage bucket \"${bucket}\" is unavailable: ${reason}`);
+  }
+
+  readyBuckets.add(bucket);
+  logger.info(`✅ Supabase Storage bucket ready: ${bucket}`);
+};
 
 /**
  * Upload a file buffer to Supabase Storage
- * Returns the public URL of the uploaded file
+ * Returns a private, non-routable storage reference. Signed URLs are generated
+ * only after the caller has passed authentication or tracking-token checks.
  */
 export const uploadFile = async (buffer, path, contentType, bucket = AUDIO_BUCKET) => {
+  await ensureBucket(bucket);
   const { error } = await supabase.storage
     .from(bucket)
     .upload(path, buffer, { contentType, upsert: false });
@@ -19,9 +53,16 @@ export const uploadFile = async (buffer, path, contentType, bucket = AUDIO_BUCKE
     throw new Error(error.message);
   }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   logger.info(`✅ Uploaded to Supabase Storage: ${bucket}/${path}`);
-  return data.publicUrl;
+  return `storage://${bucket}/${path}`;
+};
+
+export const createSignedUrl = async (reference, expiresIn = PRIVATE_URL_TTL_SECONDS) => {
+  if (!reference) return null;
+  const { bucket, path } = parseStorageUrl(reference);
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+  if (error || !data?.signedUrl) throw new Error(error?.message || "Could not create secure file URL");
+  return data.signedUrl;
 };
 
 /**
@@ -57,9 +98,15 @@ export const downloadFileBuffer = async (path, bucket = AUDIO_BUCKET) => {
  *   → { bucket: "audio-complaints", path: "audio/abc.ogg" }
  */
 export const parseStorageUrl = (publicUrl) => {
+  if (publicUrl?.startsWith("storage://")) {
+    const [bucket, ...pathParts] = publicUrl.slice("storage://".length).split("/");
+    if (!bucket || !pathParts.length) throw new Error("Invalid private storage reference");
+    return { bucket, path: pathParts.join("/") };
+  }
   try {
     const url = new URL(publicUrl);
-    const parts = url.pathname.split("/storage/v1/object/public/")[1]?.split("/");
+    const objectPath = url.pathname.split(/\/storage\/v1\/object\/(?:public|sign|authenticated)\//)[1];
+    const parts = objectPath?.split("/");
     if (!parts || parts.length < 2) throw new Error("Invalid storage URL");
     const bucket = parts[0];
     const path   = parts.slice(1).join("/");

@@ -7,6 +7,7 @@ export const createCustomerSchema = z.object({
   vehicleNumber: z.string().min(4, "Vehicle number must be at least 4 characters"),
   vehicleModel: z.string().min(1, "Vehicle model is required"),
   serviceCenter: z.string().min(1, "Service center is required"),
+  dealershipId: z.string().uuid("A valid dealership branch is required").optional(),
   serviceDate: z.preprocess((val) => {
     if (typeof val === "string" || val instanceof Date) return new Date(val);
     return val;

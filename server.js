@@ -3,8 +3,14 @@ import app from "./app.js";
 import { connectDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
+import { startPrivacyRetentionScheduler } from "./services/privacyRetention.service.js";
 
+// Redis/BullMQ workers DISABLED — Upstash free quota exhausted.
+// Processing runs synchronously via directProcessor.service.js
+// To re-enable: uncomment this block and restore queue.js BullMQ exports.
 const startEmbeddedWorkers = async () => {
+  logger.info("ℹ️  Queue workers skipped (Redis disabled — direct processing mode active)");
+  /* UNCOMMENT to re-enable BullMQ workers:
   try {
     await Promise.all([
       import("./jobs/transcription.worker.js"),
@@ -16,9 +22,9 @@ const startEmbeddedWorkers = async () => {
     ]);
     logger.info("✅ Embedded queue workers are online (single-service mode)");
   } catch (error) {
-    // Keep the API online, but make an unavailable worker visible in Render logs.
     logger.error(`❌ Embedded worker startup failed: ${error.stack || error.message}`);
   }
+  */
 };
 
 const startServer = async () => {
@@ -35,6 +41,7 @@ const startServer = async () => {
     // Free Render plans may only expose a Web Service. Run the job processors in
     // this service so transcription, OCR and comparison do not remain queued.
     await startEmbeddedWorkers();
+    startPrivacyRetentionScheduler();
   } catch (error) {
     logger.error(`❌ Server startup failed: ${error.message}`);
     process.exit(1);

@@ -4,6 +4,8 @@ import { Invoice } from "../models/Invoice.js";
 import { Comparison } from "../models/Comparison.js";
 import { sendSuccess } from "../utils/responseHandler.js";
 import { AppError } from "../utils/AppError.js";
+import * as storageService from "../services/storage.service.js";
+import { generateAuditReportPdf } from "../services/auditReport.service.js";
 
 export const getPublicTracking = async (req, res, next) => {
   try {
@@ -20,8 +22,37 @@ export const getPublicTracking = async (req, res, next) => {
       feedbackStatus: link.status,
       complaint: complaint && { status: complaint.status, createdAt: complaint.createdAt || complaint.created_at, hasAudio: Boolean(complaint.audioUrl), hasText: Boolean(complaint.transcript), rating: complaint.rating },
       invoice: invoice && { status: invoice.status, createdAt: invoice.createdAt || invoice.created_at },
-      comparison: comparison && { status: comparison.status, score: comparison.score, summary: comparison.summary, reportUrl: comparison.reportUrl },
+      comparison: comparison && { status: comparison.status, score: comparison.score, summary: comparison.summary, reportUrl: `/api/tracking/${req.params.token}/report` },
     });
+  } catch (error) { next(error); }
+};
+
+export const downloadTrackingReport = async (req, res, next) => {
+  try {
+    const link = await FeedbackLink.findByToken(req.params.token);
+    if (!link || link.status !== "SUBMITTED") throw new AppError("Tracking link is invalid", 404);
+    const customer = link.customerId || link.customer;
+    const complaint = await Complaint.findByFeedbackLinkId(link.id);
+    if (!complaint) throw new AppError("Complaint not found", 404);
+    const invoice = await Invoice.findOne({ complaintId: complaint.id });
+    const comparison = await Comparison.findOne({ complaintId: complaint.id });
+    if (!comparison) throw new AppError("Audit report is not ready yet", 404);
+
+    const reportBuffer = comparison.reportUrl
+      ? await storageService.downloadFileBuffer(
+          storageService.parseStorageUrl(comparison.reportUrl).path,
+          storageService.parseStorageUrl(comparison.reportUrl).bucket,
+        )
+      : generateAuditReportPdf({ customer, complaint, invoice, comparison });
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Length": reportBuffer.length,
+      "Content-Disposition": `attachment; filename="audit_report_${complaint.vehicleNumber || complaint.id}.pdf"`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+    });
+    return res.status(200).send(reportBuffer);
   } catch (error) { next(error); }
 };
 

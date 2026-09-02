@@ -21,7 +21,7 @@ router.use(authenticate);
  * @swagger
  * /api/invoices/upload:
  *   post:
- *     summary: Upload a service invoice PDF (ADMIN/STAFF)
+ *     summary: Upload a service invoice PDF (ADMIN/DEALER/STAFF)
  *     description: Uploads a digital or scanned invoice PDF file, uploads it to S3, and registers it to a complaint. Starts background text extraction.
  *     tags: [Invoices]
  *     security:
@@ -56,17 +56,18 @@ router.use(authenticate);
  */
 router.post(
   "/upload",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   uploadInvoicePdf,
   uploadInvoice,
 );
-router.delete("/complaint/:complaintId", authorizeRoles("ADMIN", "STAFF"), deleteInvoicesForComplaint);
+
+router.delete("/complaint/:complaintId", authorizeRoles("ADMIN", "DEALER", "STAFF"), deleteInvoicesForComplaint);
 
 /**
  * @swagger
  * /api/invoices/{id}:
  *   get:
- *     summary: Get invoice details and extraction status (ADMIN/STAFF)
+ *     summary: Get invoice details and extraction status (ADMIN/DEALER/STAFF)
  *     tags: [Invoices]
  *     security:
  *       - bearerAuth: []
@@ -86,7 +87,7 @@ router.delete("/complaint/:complaintId", authorizeRoles("ADMIN", "STAFF"), delet
  */
 router.get(
   "/:id",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   getInvoice,
 );
 

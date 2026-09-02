@@ -57,3 +57,20 @@ function parseRedisUrl(url) {
 }
 
 export const redisConnectionOptions = parseRedisUrl(env.REDIS_URL);
+
+let upstashQuotaWarned = false;
+
+export const handleWorkerError = (workerName, err) => {
+  const msg = err?.message || String(err);
+  if (msg.includes("max requests limit exceeded") || msg.includes("Limit: 500000")) {
+    if (!upstashQuotaWarned) {
+      upstashQuotaWarned = true;
+      console.warn("⚠️ Upstash Redis free quota limit reached (500k requests/month). Queue polling paused. All core API operations remain 100% active.");
+    }
+    return;
+  }
+  if (msg.includes("ECONNRESET") || msg.includes("ETIMEDOUT") || msg.includes("read ECONNRESET")) {
+    return;
+  }
+  console.error(`❌ ${workerName} worker error: ${msg}`);
+};

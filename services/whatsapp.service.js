@@ -1,51 +1,66 @@
-// services/whatsapp.service.js — High-level WhatsApp notifications via Twilio Service
 import * as twilioService from "./twilio.service.js";
 
 const APP = "AutoAudit AI";
+const vehicle = (complaintOrCustomer) => complaintOrCustomer?.vehicleNumber || complaintOrCustomer?.vehicle_number || "vehicle";
 
-/**
- * Send feedback invite via WhatsApp
- */
+const template = (stage, values) => {
+  const contentSid = process.env[`TWILIO_WHATSAPP_CONTENT_SID_${stage}`];
+  return contentSid ? { contentSid, contentVariables: values } : {};
+};
+
+const send = (customer, stage, body, values) => twilioService.sendWhatsApp({
+  to: customer.mobile,
+  body,
+  ...template(stage, values),
+});
+
 export const sendFeedbackInvite = async (customer, link) => {
-  if (!customer?.mobile) return;
-  const vNum = customer.vehicleNumber || customer.vehicle_number || "vehicle";
-  const url  = `${process.env.PUBLIC_FEEDBACK_BASE_URL || "http://localhost:3000/feedback"}/${link.token}`;
-  
-  const body = `*${APP} Service Feedback*\n\nHello ${customer.name}, thank you for choosing ${customer.serviceCenter || customer.service_center || "our workshop"} for *${vNum}*.\n\nPlease record your voice feedback here (no login required):\n👉 ${url}`;
-  return twilioService.sendWhatsApp({ to: customer.mobile, body });
+  const vNum = vehicle(customer);
+  const url = `${process.env.PUBLIC_FEEDBACK_BASE_URL || "http://localhost:3000/feedback"}/${link.token}`;
+  return send(customer, "FEEDBACK_INVITE", `*${APP} Service Feedback*\n\nHello ${customer.name}, please share your feedback for *${vNum}*:\n${url}`, { "1": customer.name, "2": vNum, "3": url });
 };
 
-/**
- * Send complaint received WhatsApp
- */
 export const sendComplaintReceived = async (customer, complaint) => {
-  if (!customer?.mobile) return;
-  const vNum = complaint.vehicleNumber || complaint.vehicle_number;
-  const body = `*${APP} Status Update*\n\nHello ${customer.name}, we have received your voice complaint for vehicle *${vNum}*. Our service team is reviewing it now.`;
-  return twilioService.sendWhatsApp({ to: customer.mobile, body });
+  const vNum = vehicle(complaint);
+  return send(customer, "COMPLAINT_RECEIVED", `*${APP} Status Update*\n\nWe received your complaint for *${vNum}*. Our team is reviewing it.`, { "1": customer.name, "2": vNum, "3": "Complaint received" });
 };
 
-/**
- * Send invoice uploaded WhatsApp
- */
+export const sendVoiceNoteProcessing = async (customer, complaint) => {
+  const vNum = vehicle(complaint);
+  return send(customer, "VOICE_PROCESSING", `*${APP} Status Update*\n\nYour feedback for *${vNum}* is being securely transcribed and reviewed.`, { "1": customer.name, "2": vNum, "3": "Feedback processing" });
+};
+
 export const sendInvoiceUploaded = async (customer, complaint) => {
-  if (!customer?.mobile) return;
-  const vNum = complaint.vehicleNumber || complaint.vehicle_number;
-  const body = `*${APP} Status Update*\n\nService invoice for *${vNum}* has been received and is undergoing automated AI audit verification.`;
-  return twilioService.sendWhatsApp({ to: customer.mobile, body });
+  const vNum = vehicle(complaint);
+  return send(customer, "INVOICE_UPLOADED", `*${APP} Status Update*\n\nThe service invoice for *${vNum}* was received and is being verified.`, { "1": customer.name, "2": vNum, "3": "Invoice uploaded" });
 };
 
-/**
- * Send audit complete WhatsApp
- */
 export const sendAuditComplete = async (customer, complaint, score) => {
-  if (!customer?.mobile) return;
-  const vNum = complaint.vehicleNumber || complaint.vehicle_number;
-  const isMatch = score >= 80;
-  
-  const body = isMatch
-    ? `*${APP} Vehicle Ready!* 🚗\n\nGreat news ${customer.name}! All reported issues for vehicle *${vNum}* have been serviced & verified.\n\nYour vehicle is ready for pickup!`
-    : `*${APP} Quality Assurance Review*\n\nHello ${customer.name}, vehicle *${vNum}* service is undergoing final Quality Assurance inspection by our Senior Manager. We will notify you once ready.`;
-
-  return twilioService.sendWhatsApp({ to: customer.mobile, body });
+  const vNum = vehicle(complaint);
+  const result = Number(score) >= 80 ? "Service verified" : "Sent for quality review";
+  return send(customer, "AUDIT_COMPLETE", `*${APP} Audit Complete*\n\nAudit completed for *${vNum}*. Result: ${result}.`, { "1": customer.name, "2": vNum, "3": result });
 };
+
+export const sendNeedsReview = async (customer, complaint) => {
+  const vNum = vehicle(complaint);
+  return send(customer, "NEEDS_REVIEW", `*${APP} Quality Review*\n\nYour feedback for *${vNum}* needs a quick manual review. No action is required from you.`, { "1": customer.name, "2": vNum, "3": "Manual review" });
+};
+
+export const sendProcessingFailed = async (customer, complaint) => {
+  const vNum = vehicle(complaint);
+  return send(customer, "PROCESSING_FAILED", `*${APP} Processing Update*\n\nAutomated processing for *${vNum}* needs staff attention. Your submission is safe.`, { "1": customer.name, "2": vNum, "3": "Staff attention required" });
+};
+
+export const sendStatusUpdate = async (customer, status, vehicleNumber) => send(
+  customer,
+  "STATUS_UPDATE",
+  `*${APP} Service Update*\n\nVehicle *${vehicleNumber}*: ${status}.`,
+  { "1": customer.name, "2": vehicleNumber, "3": status },
+);
+
+export const sendFraudEscalation = async (manager, details) => send(
+  manager,
+  "FRAUD_ESCALATION",
+  `*${APP} High-Severity Alert*\n\nDiscrepancy detected for *${details.vehicleNumber}*. Audit score: *${details.score}%*. Review immediately.`,
+  { "1": details.customerName || "Customer", "2": details.vehicleNumber, "3": `${details.score}%` },
+);

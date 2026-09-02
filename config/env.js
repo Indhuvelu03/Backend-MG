@@ -8,7 +8,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   CLIENT_URL: z.string().url(),
+  CORS_ALLOWED_ORIGINS: z.string().optional(),
   PUBLIC_FEEDBACK_BASE_URL: z.string().url(),
+  PUBLIC_API_BASE_URL: z.string().url().optional(),
 
   // Supabase
   SUPABASE_URL: z.string().url(),
@@ -18,6 +20,10 @@ const envSchema = z.object({
   // Auth
   JWT_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().default("24h"),
+  PASSWORD_RESET_EXPIRES_MINUTES: z.coerce.number().int().min(5).max(60).default(20),
+  MFA_ISSUER: z.string().default("AutoAudit AI"),
+  AUDIO_RETENTION_DAYS: z.coerce.number().int().min(30).default(365),
+  INVOICE_RETENTION_DAYS: z.coerce.number().int().min(365).default(2555),
 
   // Groq (Whisper + Llama)
   GROQ_API_KEY: z.string().min(1),
@@ -25,9 +31,18 @@ const envSchema = z.object({
   // Resend (Email)
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().min(1),
-  // Comma-separated priority, e.g. "whatsapp,sms,email". Keep email-only
-  // until a live Twilio account is configured.
-  NOTIFICATION_CHANNELS: z.string().default("email"),
+  // Every available listed channel is attempted independently. Missing
+  // Twilio configuration is skipped safely while email is still attempted.
+  NOTIFICATION_CHANNELS: z.string().default("whatsapp,sms,email"),
+  NOTIFICATION_RETRY_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(3),
+  NOTIFICATION_RETRY_DELAY_MS: z.coerce.number().int().min(100).max(10000).default(1000),
+  DEFAULT_PHONE_COUNTRY_CODE: z.string().regex(/^\+\d{1,3}$/).default("+91"),
+
+  // Twilio is optional. When absent, the dispatcher proceeds directly to email.
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_SMS_NUMBER: z.string().optional(),
+  TWILIO_WHATSAPP_NUMBER: z.string().optional(),
 
   // Redis / BullMQ (Upstash)
   REDIS_URL: z.string().min(1).default("redis://127.0.0.1:6379"),

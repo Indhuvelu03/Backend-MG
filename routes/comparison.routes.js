@@ -20,7 +20,7 @@ router.use(authenticate);
  * @swagger
  * /api/comparison/analyze/{complaintId}:
  *   post:
- *     summary: Manually trigger AI semantic comparison analysis (ADMIN/STAFF)
+ *     summary: Manually trigger AI semantic comparison analysis (ADMIN/DEALER/STAFF)
  *     description: Starts a background GPT comparison check if both transcript and invoice text are extracted and no audit was run yet.
  *     tags: [Comparison]
  *     security:
@@ -45,15 +45,15 @@ router.use(authenticate);
  */
 router.post(
   "/analyze/:complaintId",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   analyzeComparison,
 );
 
 /**
  * @swagger
- * /api/comparison/{complaintId}:
+ * /api/comparison/{complaintId}/report:
  *   get:
- *     summary: Retrieve AI semantic comparison report by complaint ID (ADMIN/STAFF)
+ *     summary: Retrieve AI semantic comparison report by complaint ID (ADMIN/DEALER/STAFF)
  *     tags: [Comparison]
  *     security:
  *       - bearerAuth: []
@@ -73,13 +73,13 @@ router.post(
  */
 router.get(
   "/:complaintId/report",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   getAuditReport,
 );
 
 router.get(
   "/:complaintId",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   getComparison,
 );
 

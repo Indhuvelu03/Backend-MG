@@ -9,7 +9,7 @@
     "start": "node server.js",
     "start:worker": "node worker.js",
     "dev:worker": "node --watch worker.js",
-    "test": "jest --runInBand --detectOpenHandles",
+    "test": "node --test tests/*.test.js",
     "lint": "eslint \"/**/*.js\"",
     "lint:fix": "eslint \"**/*.js\" --fix",
     "format": "prettier --write \"*.js\" \"tests/**/*.js\"",

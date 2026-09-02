@@ -8,6 +8,7 @@ const norm = (row) => {
   return {
     ...row,
     _id: row.id,
+    dealershipId:  row.dealership_id,
     vehicleNumber: row.vehicle_number,
     vehicleModel:  row.vehicle_model,
     serviceCenter: row.service_center,
@@ -17,16 +18,22 @@ const norm = (row) => {
   };
 };
 
-const toInsert = (data) => ({
-  name:           data.name,
-  mobile:         data.mobile,
-  email:          data.email?.toLowerCase() || null,
-  vehicle_number: data.vehicleNumber?.toUpperCase() || data.vehicle_number,
-  vehicle_model:  data.vehicleModel  || data.vehicle_model,
-  service_center: data.serviceCenter || data.service_center,
-  service_date:   data.serviceDate   || data.service_date   || new Date().toISOString(),
-  created_by:     data.createdBy     || data.created_by     || null,
-});
+const toInsert = (data) => {
+  const row = {
+    name:           data.name,
+    mobile:         data.mobile,
+    email:          data.email?.toLowerCase() || null,
+    vehicle_number: data.vehicleNumber?.toUpperCase() || data.vehicle_number,
+    vehicle_model:  data.vehicleModel  || data.vehicle_model,
+    service_center: data.serviceCenter || data.service_center,
+    service_date:   data.serviceDate   || data.service_date   || new Date().toISOString(),
+    created_by:     data.createdBy     || data.created_by     || null,
+  };
+  if (data.dealershipId || data.dealership_id) {
+    row.dealership_id = data.dealershipId || data.dealership_id;
+  }
+  return row;
+};
 
 export const Customer = {
   async create(data) {
@@ -46,12 +53,17 @@ export const Customer = {
     if (query.vehicleNumber) q = q.eq("vehicle_number", query.vehicleNumber.toUpperCase());
     if (query.mobile)        q = q.eq("mobile", query.mobile);
     if (query.email)         q = q.eq("email", query.email.toLowerCase());
+    if (query.dealershipId || query.dealership_id) q = q.eq("dealership_id", query.dealershipId || query.dealership_id);
     const { data } = await q.maybeSingle();
     return norm(data);
   },
 
   async find(query = {}, { sort, skip = 0, limit = 10 } = {}) {
     let q = supabase.from(TABLE).select("*, created_by_user:users(name,email)", { count: "exact" });
+
+    if (query.dealershipId || query.dealership_id) {
+      q = q.eq("dealership_id", query.dealershipId || query.dealership_id);
+    }
 
     if (query.$or) {
       // Search across fields — use ilike

@@ -1,9 +1,9 @@
 import express from "express";
 import crypto from "crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import helmet from "helmet";
-import path from "path";
-import { fileURLToPath } from "url";
 import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error.middleware.js";
@@ -12,10 +12,8 @@ import { swaggerSpec } from "./config/swagger.js";
 import { apiRouter } from "./routes/index.js";
 import { getWorkerHeartbeat } from "./jobs/workerHeartbeat.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
+const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
 
 // Every client-visible failure can be matched to one precise server log entry.
 app.use((req, res, next) => {
@@ -32,24 +30,44 @@ app.use(helmet({
   contentSecurityPolicy: false, // allow inline scripts for Vite SPA
 }));
 
-// CORS
-app.use(cors({
-  origin: true,
+// CORS: only configured application origins may call credentialed APIs.
+const allowedOrigins = new Set(
+  [
+    env.CLIENT_URL,
+    ...(env.CORS_ALLOWED_ORIGINS || "").split(","),
+    ...(env.NODE_ENV === "development"
+      ? [
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+        ]
+      : []),
+  ]
+    .map(origin => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean)
+);
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin.replace(/\/$/, ""))) return callback(null, true);
+    return callback(new Error("Origin is not allowed by CORS"));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
-}));
-app.options("*", cors());
+};
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Body parsing
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Serve static frontend
-app.use(express.static("public"));
-
 // Rate limiting
-app.use(standardLimiter);
+app.use((req, res, next) => {
+  if (req.path === "/api/webhooks/twilio/status") return next();
+  return standardLimiter(req, res, next);
+});
 
 // Swagger docs
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -92,10 +110,10 @@ app.get("/api/readiness", async (_req, res) => {
 // API routes
 app.use("/api", apiRouter);
 
-// SPA client routing fallback (returns index.html for non-API routes)
-app.get("*", (req, res, next) => {
-  if (req.path.startsWith("/api")) return next();
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// Serve the dashboard bundle and let the React app handle its own routes.
+app.use(express.static(publicDir));
+app.get(/^\/(?!api(?:\/|$)|api-docs(?:\/|$)).*/, (_req, res) => {
+  res.sendFile(path.join(publicDir, "index.html"));
 });
 
 // Error handler

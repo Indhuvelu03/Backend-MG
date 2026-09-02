@@ -12,10 +12,13 @@ import emailActivityRouter from "./emailActivity.routes.js";
 import serviceCenterRouter from "./serviceCenter.routes.js";
 import trackingRouter from "./tracking.routes.js";
 import managerRouter from "./manager.routes.js";
-
+import dealershipRouter from "./dealership.routes.js";
+import securityRouter from "./security.routes.js";
+import webhookRouter from "./webhook.routes.js";
 
 export const apiRouter = Router();
 
+apiRouter.use("/webhooks", webhookRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/customers", customerRouter);
 apiRouter.use("/feedback-links", feedbackRouter);
@@ -26,5 +29,7 @@ apiRouter.use("/comparison", comparisonRouter);
 apiRouter.use("/reports", reportRouter);
 apiRouter.use("/email-activity", emailActivityRouter);
 apiRouter.use("/service-centers", serviceCenterRouter);
-apiRouter.use("/public/tracking", trackingRouter);
+apiRouter.use("/tracking", trackingRouter);
 apiRouter.use("/manager", managerRouter);
+apiRouter.use("/dealerships", dealershipRouter);
+apiRouter.use("/security", securityRouter);

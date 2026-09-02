@@ -9,6 +9,7 @@ const norm = (row) => {
     ...row,
     _id:               row.id,
     complaintId:       row.complaint_id,
+    dealershipId:      row.dealership_id,
     invoiceId:         row.invoice_id,
     matchedIssues:     row.matched_issues     || [],
     missingIssues:     row.missing_issues     || [],
@@ -28,6 +29,7 @@ export const Comparison = {
       .from(TABLE)
       .insert({
         complaint_id:        data.complaintId,
+        dealership_id:       data.dealershipId || data.dealership_id || null,
         invoice_id:          data.invoiceId,
         matched_issues:      data.matchedIssues     || [],
         missing_issues:      data.missingIssues     || [],

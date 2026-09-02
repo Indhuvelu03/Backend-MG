@@ -11,6 +11,12 @@ const supabase = createClient(
 );
 
 async function seedAdmin() {
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) {
+    console.error('Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD before running this script.');
+    process.exit(1);
+  }
   console.log('🚀 Starting admin seeding...');
   console.log(`📡 Connecting to Supabase: ${process.env.SUPABASE_URL}`);
 
@@ -18,7 +24,7 @@ async function seedAdmin() {
   const { data: existing } = await supabase
     .from('users')
     .select('id, email, role')
-    .eq('email', 'admin@autoaudit.in')
+    .eq('email', adminEmail.toLowerCase())
     .maybeSingle();
 
   if (existing) {
@@ -26,18 +32,18 @@ async function seedAdmin() {
     console.log(`   Email : ${existing.email}`);
     console.log(`   Role  : ${existing.role}`);
     console.log('✅ Nothing to do.');
-    process.exit(0);
+    return;
   }
 
   // ── Hash password ───────────────────────────────────────────────────────────
-  const passwordHash = await bcrypt.hash('Admin@123456', 10);
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
 
   // ── Insert admin ────────────────────────────────────────────────────────────
   const { data: admin, error: adminErr } = await supabase
     .from('users')
     .insert({
       name: 'System Administrator',
-      email: 'admin@autoaudit.in',
+      email: adminEmail.toLowerCase(),
       password: passwordHash,
       role: 'ADMIN',
       is_active: true,
@@ -50,44 +56,15 @@ async function seedAdmin() {
     process.exit(1);
   }
   console.log('✅ Admin user created:');
-  console.log(`   Email    : admin@autoaudit.in`);
-  console.log(`   Password : Admin@123456`);
+  console.log(`   Email    : ${adminEmail}`);
+  console.log('   Password : [provided securely through SEED_ADMIN_PASSWORD]');
   console.log(`   Role     : ADMIN`);
 
-  // ── Insert staff ────────────────────────────────────────────────────────────
-  const { data: existingStaff } = await supabase
-    .from('users')
-    .select('id')
-    .eq('email', 'staff@autoaudit.in')
-    .maybeSingle();
-
-  if (!existingStaff) {
-    const staffHash = await bcrypt.hash('Staff@123456', 10);
-    const { error: staffErr } = await supabase
-      .from('users')
-      .insert({
-        name: 'Service Advisor',
-        email: 'staff@autoaudit.in',
-        password: staffHash,
-        role: 'STAFF',
-        is_active: true,
-      });
-
-    if (staffErr) {
-      console.warn('⚠️  Staff user not created:', staffErr.message);
-    } else {
-      console.log('✅ Staff user created:');
-      console.log(`   Email    : staff@autoaudit.in`);
-      console.log(`   Password : Staff@123456`);
-      console.log(`   Role     : STAFF`);
-    }
-  }
-
-  console.log('\n🎉 Seeding complete! You can now log in at your Vercel URL.');
+  console.log('\nAdmin seeding complete. Create staff through the authenticated admin workflow.');
   process.exit(0);
 }
 
 seedAdmin().catch((err) => {
   console.error('❌ Unexpected error:', err);
   process.exit(1);
-});
+});

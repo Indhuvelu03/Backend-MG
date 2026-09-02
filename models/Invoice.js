@@ -9,6 +9,7 @@ const norm = (row) => {
     ...row,
     _id:              row.id,
     complaintId:      row.complaint_id,
+    dealershipId:     row.dealership_id,
     fileUrl:          row.file_url,
     extractedText:    row.extracted_text,
     extractedItems:   row.extracted_items || [],
@@ -27,9 +28,11 @@ export const Invoice = {
       .from(TABLE)
       .insert({
         complaint_id:     data.complaintId,
+        dealership_id:    data.dealershipId || data.dealership_id || null,
         file_url:         data.fileUrl,
         uploaded_by:      data.uploadedBy || null,
         status:           data.status || "UPLOADED",
+        retention_until:  data.retentionUntil || data.retention_until || null,
       })
       .select()
       .single();

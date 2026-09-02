@@ -1,6 +1,6 @@
 // routes/report.routes.js
 import { Router } from "express";
-import { getDashboardMetrics } from "../controllers/report.controller.js";
+import { getDashboardMetrics, exportDashboardCsv, exportDashboardPdf } from "../controllers/report.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/role.middleware.js";
 
@@ -55,8 +55,10 @@ router.use(authenticate);
  */
 router.get(
   "/dashboard",
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "DEALER"),
   getDashboardMetrics,
 );
+router.get("/dashboard/export.csv", authorizeRoles("ADMIN", "DEALER"), exportDashboardCsv);
+router.get("/dashboard/export.pdf", authorizeRoles("ADMIN", "DEALER"), exportDashboardPdf);
 
 export default router;

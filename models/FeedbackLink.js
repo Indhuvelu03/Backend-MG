@@ -33,6 +33,7 @@ export const FeedbackLink = {
       .from(TABLE)
       .insert({
         customer_id: data.customerId,
+        dealership_id: data.dealershipId || data.dealership_id || null,
         token:       data.token,
         expires_at:  data.expiresAt,
         status:      "PENDING",
@@ -69,11 +70,13 @@ export const FeedbackLink = {
     return norm(data, data.customer);
   },
 
-  async findAll() {
-    const { data, error } = await supabase
+  async findAll({ dealershipId } = {}) {
+    let query = supabase
       .from(TABLE)
-      .select("*, customer:customers(name,vehicle_number,vehicle_model)")
+      .select("*, customer:customers(name,vehicle_number,vehicle_model,dealership_id)")
       .order("created_at", { ascending: false });
+    if (dealershipId) query = query.eq("dealership_id", dealershipId);
+    const { data, error } = await query;
     if (error) return [];
     return (data || []).map(r => norm(r, r.customer));
   },

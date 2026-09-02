@@ -5,6 +5,9 @@ import { sendError } from "../utils/responseHandler.js";
 export const standardLimiter = rateLimit({
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   max: env.RATE_LIMIT_MAX,
+  // Load balancers and uptime monitors must not consume an application's
+  // interactive API allowance. CORS preflight requests are also non-business traffic.
+  skip: (req) => req.method === "OPTIONS" || req.path === "/api/health" || req.path === "/api/readiness",
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },

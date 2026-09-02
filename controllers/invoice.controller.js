@@ -3,9 +3,11 @@ import { Complaint } from "../models/Complaint.js";
 import { Invoice } from "../models/Invoice.js";
 import { Comparison } from "../models/Comparison.js";
 import * as storageService from "../services/storage.service.js";
-import { invoiceExtractionQueue } from "../jobs/queue.js";
+import { runInvoiceExtraction } from "../services/directProcessor.service.js";
 import { sendSuccess } from "../utils/responseHandler.js";
 import { AppError } from "../utils/AppError.js";
+import { verifyTenantOwnership } from "../middleware/tenant.middleware.js";
+import { env } from "../config/env.js";
 
 export const uploadInvoice = async (req, res, next) => {
   try {
@@ -17,9 +19,10 @@ export const uploadInvoice = async (req, res, next) => {
     if (!complaintId) throw new AppError("Complaint ID is required", 400);
     if (!file)        throw new AppError("Invoice PDF file is required", 400);
 
-    // 1. Verify complaint exists
+    // 1. Verify complaint exists & check ownership
     const complaint = await Complaint.findById(complaintId);
     if (!complaint) throw new AppError("Complaint record not found", 404);
+    verifyTenantOwnership(complaint, req.user, "Complaint");
 
     // 2. Check for existing invoice
     const existing = await Invoice.findOne({ complaintId, status: { $ne: "FAILED" } });
@@ -32,17 +35,20 @@ export const uploadInvoice = async (req, res, next) => {
     // 4. Create invoice record
     const invoice = await Invoice.create({
       complaintId,
+      dealershipId: complaint.dealershipId || complaint.dealership_id,
       fileUrl,
       uploadedBy: req.user.id || req.user._id,
       status:     "UPLOADED",
+      retentionUntil: new Date(Date.now() + env.INVOICE_RETENTION_DAYS * 86400000).toISOString(),
     });
+    await Complaint.updateById(complaintId, { serviceStatus: "INVOICE_UPLOADED" }).catch(() => null);
 
-    // 5. Queue extraction job
-    const job = await invoiceExtractionQueue.add("extract-invoice-text", {
-      invoiceId: invoice.id,
-    }, { jobId: `extract-${invoice.id}` });
+    // Direct mode has no durable queue. Complete the extraction before the
+    // request returns so a process restart cannot leave an invoice stuck in
+    // EXTRACTING.
+    await runInvoiceExtraction(invoice.id);
 
-    sendSuccess(res, "Invoice uploaded and text extraction queued", { invoice, jobId: job.id }, 201);
+    sendSuccess(res, "Invoice uploaded and text extraction completed", { invoice: await Invoice.findById(invoice.id) }, 201);
   } catch (error) { next(error); }
 };
 
@@ -50,12 +56,22 @@ export const getInvoice = async (req, res, next) => {
   try {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) throw new AppError("Invoice not found", 404);
+
+    const complaint = await Complaint.findById(invoice.complaintId);
+    if (complaint) {
+      verifyTenantOwnership(complaint, req.user, "Complaint Invoice");
+    }
+
     sendSuccess(res, "Invoice retrieved successfully", invoice, 200);
   } catch (error) { next(error); }
 };
 
 export const deleteInvoicesForComplaint = async (req, res, next) => {
   try {
+    const complaint = await Complaint.findById(req.params.complaintId);
+    if (!complaint) throw new AppError("Complaint not found", 404);
+    verifyTenantOwnership(complaint, req.user, "Complaint");
+
     const invoices = await Invoice.findAllByComplaintId(req.params.complaintId);
     await Comparison.deleteMany({ complaintId: req.params.complaintId });
     for (const invoice of invoices) {

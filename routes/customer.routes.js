@@ -78,7 +78,7 @@ router.use(authenticate);
  */
 router.post(
   "/",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   validateRequest({ body: createCustomerSchema }),
   createCustomer,
 );
@@ -113,7 +113,7 @@ router.post(
  *       401:
  *         description: Unauthorized
  */
-router.get("/", authorizeRoles("ADMIN", "STAFF"), listCustomers);
+router.get("/", authorizeRoles("ADMIN", "DEALER", "STAFF"), listCustomers);
 
 /**
  * @swagger
@@ -137,7 +137,7 @@ router.get("/", authorizeRoles("ADMIN", "STAFF"), listCustomers);
  *       401:
  *         description: Unauthorized
  */
-router.get("/:id", authorizeRoles("ADMIN", "STAFF"), getCustomer);
+router.get("/:id", authorizeRoles("ADMIN", "DEALER", "STAFF"), getCustomer);
 
 /**
  * @swagger
@@ -184,7 +184,7 @@ router.get("/:id", authorizeRoles("ADMIN", "STAFF"), getCustomer);
  */
 router.put(
   "/:id",
-  authorizeRoles("ADMIN", "STAFF"),
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
   validateRequest({ body: updateCustomerSchema }),
   updateCustomer,
 );
@@ -213,6 +213,6 @@ router.put(
  *       401:
  *         description: Unauthorized
  */
-router.delete("/:id", authorizeRoles("ADMIN"), deleteCustomer);
+router.delete("/:id", authorizeRoles("ADMIN", "DEALER"), deleteCustomer);
 
 export default router;

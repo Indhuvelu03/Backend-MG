@@ -80,13 +80,9 @@ export const invoiceExtractionWorker = new Worker(
   }
 );
 
+import { handleWorkerError } from "../config/redis.js";
+
 invoiceExtractionWorker.on("completed", (job) => logger.info(`✅ Extraction job ${job.id} done`));
 invoiceExtractionWorker.on("failed",    (job, err) => logger.error(`❌ Extraction job ${job?.id} failed: ${err.message}`));
-invoiceExtractionWorker.on("error",     (err) => {
-  if (err.message?.includes("ECONNRESET") || err.message?.includes("ETIMEDOUT")) {
-    logger.warn(`⚠️ Extraction worker Redis reconnecting: ${err.message}`);
-  } else {
-    logger.error(`❌ Extraction worker error: ${err.message}`);
-  }
-});
+invoiceExtractionWorker.on("error",     (err) => handleWorkerError("Extraction", err));
 logger.info("✅ Invoice extraction worker ready (+ invoice-uploaded notification)");
