@@ -84,3 +84,48 @@ export const deleteCustomer = async (req, res, next) => {
     next(error);
   }
 };
+
+export const importCustomers = async (req, res, next) => {
+  try {
+    if (!req.user) throw new AppError("No authenticated user context found", 401);
+    const dealershipId = req.user.role === "ADMIN"
+      ? (req.body.dealershipId || req.user.dealershipId || null)
+      : (req.user.dealershipId || req.user.dealership_id);
+
+    if (!dealershipId) throw new AppError("Select a dealership branch before importing customers", 400);
+    if (req.user.role === "ADMIN") {
+      const dealership = await Dealership.findById(dealershipId);
+      if (!dealership || dealership.isActive === false) {
+        throw new AppError("The selected dealership branch is unavailable", 400);
+      }
+    }
+
+    const imported = [];
+    const failed = [];
+    let cursor = 0;
+    const importNext = async () => {
+      while (cursor < req.body.customers.length) {
+        const index = cursor;
+        cursor += 1;
+        const row = req.body.customers[index];
+        try {
+          const customer = await customerService.createCustomer({ ...row, dealershipId }, req.user.id);
+          imported.push({ index, customer: protectCustomerContact(customer, req.user) });
+        } catch (error) {
+          failed.push({ row: index + 2, vehicleNumber: row.vehicleNumber, message: error.message || "Import failed" });
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(5, req.body.customers.length) }, importNext));
+    imported.sort((a, b) => a.index - b.index);
+    failed.sort((a, b) => a.row - b.row);
+
+    sendSuccess(res, "Customer import completed", {
+      imported: imported.map(item => item.customer),
+      failed,
+      summary: { total: req.body.customers.length, imported: imported.length, failed: failed.length },
+    }, 200);
+  } catch (error) {
+    next(error);
+  }
+};

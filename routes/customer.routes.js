@@ -2,6 +2,7 @@
 import { Router } from "express";
 import {
   createCustomer,
+  importCustomers,
   listCustomers,
   getCustomer,
   updateCustomer,
@@ -10,7 +11,7 @@ import {
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/role.middleware.js";
 import { validateRequest } from "../middleware/validate.middleware.js";
-import { createCustomerSchema, updateCustomerSchema } from "../validators/customer.validator.js";
+import { createCustomerSchema, importCustomersSchema, updateCustomerSchema } from "../validators/customer.validator.js";
 
 const router = Router();
 
@@ -81,6 +82,13 @@ router.post(
   authorizeRoles("ADMIN", "DEALER", "STAFF"),
   validateRequest({ body: createCustomerSchema }),
   createCustomer,
+);
+
+router.post(
+  "/import",
+  authorizeRoles("ADMIN", "DEALER", "STAFF"),
+  validateRequest({ body: importCustomersSchema }),
+  importCustomers,
 );
 
 /**

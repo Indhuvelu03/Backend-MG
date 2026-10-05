@@ -13,9 +13,27 @@ const envSchema = z.object({
   PUBLIC_API_BASE_URL: z.string().url().optional(),
 
   // Supabase
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_URL: z
+    .string()
+    .url()
+    .refine(
+      (url) => !url.includes("your-project.supabase.co"),
+      "SUPABASE_URL contains placeholder 'your-project.supabase.co'. Please set your actual Supabase URL in your environment variables."
+    ),
+  SUPABASE_ANON_KEY: z
+    .string()
+    .min(1)
+    .refine(
+      (k) => k !== "your_supabase_anon_key",
+      "SUPABASE_ANON_KEY is set to placeholder 'your_supabase_anon_key'. Set your actual key in environment variables."
+    ),
+  SUPABASE_SERVICE_ROLE_KEY: z
+    .string()
+    .min(1)
+    .refine(
+      (k) => k !== "your_supabase_service_role_key",
+      "SUPABASE_SERVICE_ROLE_KEY is set to placeholder 'your_supabase_service_role_key'. Set your actual key in environment variables."
+    ),
 
   // Auth
   JWT_SECRET: z.string().min(8),

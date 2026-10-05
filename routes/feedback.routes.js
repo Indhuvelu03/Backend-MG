@@ -3,7 +3,7 @@ import { Router } from "express";
 import {
   createLink,
   listLinks,
-  sendInvite,
+  sendInvite, renewExpiredLink,
   validateToken,
   deleteLink,
 } from "../controllers/feedback.controller.js";
@@ -31,6 +31,7 @@ router.post(
   validateRequest({ body: sendFeedbackLinkSchema }),
   sendInvite,
 );
+router.post("/:id/renew", authenticate, authorizeRoles("ADMIN", "DEALER", "STAFF"), renewExpiredLink);
 router.delete("/:id", authenticate, authorizeRoles("ADMIN", "DEALER", "STAFF"), deleteLink);
 
 router.get("/:token", validateToken);

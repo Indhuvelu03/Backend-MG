@@ -43,6 +43,24 @@ export const sendInvite = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+export const renewExpiredLink = async (req, res, next) => {
+  try {
+    const link = await FeedbackLink.findByIdWithCustomer(req.params.id);
+    if (!link) throw new AppError("Feedback link not found", 404);
+    verifyTenantOwnership(link.customerId || link, req.user, "Feedback link");
+    if (link.status === "SUBMITTED") {
+      throw new AppError("A submitted feedback link cannot be renewed", 400);
+    }
+    if (!link.isExpired()) {
+      throw new AppError("Only expired feedback links can be renewed", 400);
+    }
+
+    const customerId = link.customerId?.id || link.customerId?._id || link.customerId || link.customer_id;
+    const renewedLink = await feedbackService.autoCreateAndSendLink(customerId);
+    sendSuccess(res, "A new 72-hour feedback link was created and sent", renewedLink, 201);
+  } catch (error) { next(error); }
+};
+
 export const validateToken = async (req, res, next) => {
   try {
     const link = await feedbackService.verifyFeedbackToken(req.params.token);
