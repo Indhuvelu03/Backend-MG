@@ -61,12 +61,13 @@ const loadComplaintContext = async (complaintId) => {
   return { complaint, customer };
 };
 
-const dispatch = async ({ customer, jobName, data, tasks, shouldDeliver }) => {
+const dispatch = async ({ customer, jobName, data, tasks, shouldDeliver, channels }) => {
   const stage = stageLabels[jobName] || jobName;
   const customerId = customer?.id || customer?._id;
   return deliverAcrossChannels({
     customer,
     tasks,
+    channels,
     // Retrying processing must never resend a notification already accepted by
     // a provider for this exact lifecycle stage and channel.
     shouldDeliver: shouldDeliver || ((channel) => EmailActivity.wasSent({ customerId, stage, channel }).then(sent => !sent)),
@@ -85,6 +86,7 @@ const processInvite = async (data) => {
     customer,
     jobName: "dispatch-invite",
     data,
+    channels: data.channels,
     // A renewed link has a new token and must be deliverable even when the
     // customer received a previous feedback invitation.
     shouldDeliver: (channel) => !link.sentVia?.[channel],

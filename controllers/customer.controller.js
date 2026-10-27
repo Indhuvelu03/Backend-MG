@@ -109,7 +109,11 @@ export const importCustomers = async (req, res, next) => {
         cursor += 1;
         const row = req.body.customers[index];
         try {
-          const customer = await customerService.createCustomer({ ...row, dealershipId }, req.user.id);
+          const customer = await customerService.createCustomer(
+            { ...row, dealershipId },
+            req.user.id,
+            { sendFeedbackInvite: false, createPendingFeedbackLink: true },
+          );
           imported.push({ index, customer: protectCustomerContact(customer, req.user) });
         } catch (error) {
           failed.push({ row: index + 2, vehicleNumber: row.vehicleNumber, message: error.message || "Import failed" });

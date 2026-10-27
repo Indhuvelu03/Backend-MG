@@ -43,10 +43,11 @@ export const verifyFeedbackToken = async (token) => {
   return link;
 };
 
-export const enqueueNotificationInvite = async (feedbackLinkId) => {
+export const enqueueNotificationInvite = async (feedbackLinkId, channels) => {
   const link = await FeedbackLink.findById(feedbackLinkId);
   if (!link) throw new AppError("Feedback link not found", 404);
   return notificationsQueue.add("dispatch-invite", {
     feedbackLinkId: link.id,
+    channels,
   }, { jobId: `invite-${link.id}` });
 };

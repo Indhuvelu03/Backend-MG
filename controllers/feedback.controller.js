@@ -18,8 +18,8 @@ export const createLink = async (req, res, next) => {
     const customer = await Customer.findById(customerId);
     if (!customer) throw new AppError("Customer not found", 404);
     verifyTenantOwnership(customer, req.user, "Customer");
-    const link = await feedbackService.autoCreateAndSendLink(customerId);
-    sendSuccess(res, "Feedback link generated and invite email sent successfully", link, 201);
+    const link = await feedbackService.createFeedbackLink(customerId);
+    sendSuccess(res, "Feedback link generated and ready to send", link, 201);
   } catch (error) { next(error); }
 };
 
@@ -34,12 +34,12 @@ export const listLinks = async (req, res, next) => {
 
 export const sendInvite = async (req, res, next) => {
   try {
-    const { feedbackLinkId } = req.body;
+    const { feedbackLinkId, channels } = req.body;
     const link = await FeedbackLink.findByIdWithCustomer(feedbackLinkId);
     if (!link) throw new AppError("Feedback link not found", 404);
     verifyTenantOwnership(link.customerId || link, req.user, "Feedback link");
-    await feedbackService.enqueueNotificationInvite(feedbackLinkId);
-    sendSuccess(res, "Invite queued for delivery", { feedbackLinkId }, 200);
+    await feedbackService.enqueueNotificationInvite(feedbackLinkId, channels);
+    sendSuccess(res, "Invite queued for delivery", { feedbackLinkId, channels }, 200);
   } catch (error) { next(error); }
 };
 

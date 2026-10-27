@@ -1,10 +1,13 @@
 // services/customer.service.js — Supabase-based
 import { Customer } from "../models/Customer.js";
 import { AppError } from "../utils/AppError.js";
-import { autoCreateAndSendLink } from "./feedback.service.js";
+import { autoCreateAndSendLink, createFeedbackLink } from "./feedback.service.js";
 import { logger } from "../utils/logger.js";
 
-export const createCustomer = async (data, createdBy) => {
+export const createCustomer = async (data, createdBy, {
+  sendFeedbackInvite = true,
+  createPendingFeedbackLink = false,
+} = {}) => {
   const vehicleUpper = data.vehicleNumber?.toUpperCase();
   const existing = await Customer.findOne({
     vehicleNumber: vehicleUpper,
@@ -15,13 +18,24 @@ export const createCustomer = async (data, createdBy) => {
   const customer = await Customer.create({ ...data, vehicleNumber: vehicleUpper, createdBy });
   logger.info(`✅ Customer created: ${customer.name} (${vehicleUpper})`);
 
-  // AUTO: generate feedback link + send email (zero admin action)
-  try {
-    const link = await autoCreateAndSendLink(customer.id);
-    logger.info(`📧 Feedback link auto-queued for ${customer.name} — token: ${link.token}`);
-  } catch (err) {
-    logger.error(`⚠️ Auto-link failed for ${customer.name}: ${err.message}`);
-    // Do not fail the customer creation
+  // Single-record registration sends an invite. Bulk imports explicitly skip
+  // this so a spreadsheet upload cannot accidentally notify hundreds of people.
+  if (sendFeedbackInvite) {
+    try {
+      const link = await autoCreateAndSendLink(customer.id);
+      logger.info(`📧 Feedback link auto-queued for ${customer.name} — token: ${link.token}`);
+    } catch (err) {
+      logger.error(`⚠️ Auto-link failed for ${customer.name}: ${err.message}`);
+      // Do not fail the customer creation
+    }
+  } else if (createPendingFeedbackLink) {
+    try {
+      const link = await createFeedbackLink(customer.id);
+      logger.info(`Pending feedback link created for ${customer.name} — token: ${link.token}`);
+    } catch (err) {
+      logger.error(`Pending feedback link creation failed for ${customer.name}: ${err.message}`);
+      // The customer import remains valid; a dealer can create a link manually.
+    }
   }
 
   return customer;
